@@ -74,10 +74,32 @@ operation and is reported as `FolioPluginHookError`, preserving the original
 error in `cause` and adding the plugin name, hook, mode, and page location when
 available.
 
+The hook responsibilities and contracts are:
+
+| Hook | Input | Contract |
+| --- | --- | --- |
+| `configResolved` | build context | Observe the final resolved configuration before scanning. |
+| `buildStart` | build context | Prepare plugin state before content discovery. |
+| `pageCollected` | page and context | Observe one scanned `PageData` snapshot. |
+| `pageTransformed` | page and context | Return transformed `PageData` while preserving `slug` and `url`. |
+| `generate` | build context | Run after the integrating tool has generated artifacts. |
+| `buildEnd` | build result and context | Observe the final immutable result, including failed results. |
+
+If a hook fails, later plugins and later hooks in the current operation are not
+called. The integrating tool owns the final process-level failure handling, but
+the lifecycle manager always wraps an unhandled hook failure and retains its
+original cause. `buildEnd` receives `success: false` when the integrating tool
+reports a failed build; it does not convert a failed build into a successful
+one.
+
 `pageTransformed` may update a page's metadata, including its title,
 description, order, badge, icon, table of contents, and frontmatter-derived
 values. It must preserve the page route identity (`slug` and `url`). The first
-contract does not allow plugins to add routes or replace MDX source content.
+contract does not allow plugins to add routes or replace MDX source content. A
+transformation is applied before route tree, sidebar, and pagination generation
+so those structures consume the transformed page metadata. Source-content
+transformation is intentionally excluded from this contract and requires a
+future, separately specified API.
 
 Hook inputs are immutable snapshots, so plugins cannot mutate Folio's
 configuration or collected page data. This includes nested objects, arrays,

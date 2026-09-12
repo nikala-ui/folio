@@ -14,13 +14,17 @@ const page: FolioPage = {
   title: "Start",
 };
 
-function manager(plugins: readonly FolioPlugin[] = [], pages: readonly FolioPage[] = []) {
+function manager(
+  plugins: readonly FolioPlugin[] = [],
+  pages: readonly FolioPage[] = [],
+  mode: "development" | "production" = "production",
+) {
   return createFolioPluginLifecycleManager({
     plugins,
     config: { title: "Docs", navigation: { sidebar: { nav: "auto" } } },
     rootDir: "/project",
     contentDir: "/project/docs",
-    mode: "production",
+    mode,
     logger: { debug() {}, info() {}, warn() {}, error() {} },
     pages,
   });
@@ -64,6 +68,47 @@ describe("plugin lifecycle manager", () => {
     ]);
   });
 
+  test("stops the current hook operation after the first plugin failure", async () => {
+    const calls: string[] = [];
+    const lifecycle = manager([
+      {
+        name: "failing",
+        buildStart: () => {
+          calls.push("failing");
+          throw new Error("stop here");
+        },
+      },
+      {
+        name: "later",
+        buildStart: () => { calls.push("later"); },
+      },
+    ]);
+
+    await expect(lifecycle.buildStart()).rejects.toMatchObject({
+      name: "FolioPluginHookError",
+      pluginName: "failing",
+      hook: "buildStart",
+    });
+    expect(calls).toEqual(["failing"]);
+  });
+
+  test("passes the configured mode to every context hook", async () => {
+    const modes: string[] = [];
+    const plugin: FolioPlugin = {
+      name: "mode-observer",
+      configResolved: (context) => { modes.push(context.mode); },
+      buildStart: (context) => { modes.push(context.mode); },
+      generate: (context) => { modes.push(context.mode); },
+    };
+
+    const development = manager([plugin], [], "development");
+    await development.configResolved();
+    await development.buildStart();
+    await development.generate();
+
+    expect(modes).toEqual(["development", "development", "development"]);
+  });
+
   test("chains transformed pages and preserves the route identity", async () => {
     const lifecycle = manager([
       { name: "title", pageTransformed: (current) => ({ ...current, title: `${current.title}!` }) },
@@ -80,6 +125,42 @@ describe("plugin lifecycle manager", () => {
       pluginName: "bad-route",
       hook: "pageTransformed",
     });
+  });
+
+  test("transforms page metadata without adding a page or changing its route", async () => {
+    const lifecycle = manager([{
+      name: "metadata",
+      pageTransformed: (current) => ({
+        ...current,
+        title: "Updated",
+        description: "Updated description",
+        frontmatter: {
+          ...current.frontmatter,
+          order: 2,
+          badge: "New",
+          icon: "sparkles",
+          toc: false,
+        },
+      }),
+    }], [page]);
+
+    const transformed = await lifecycle.pageTransformed(page);
+    const pages = lifecycle.getPages();
+
+    expect(transformed).toMatchObject({
+      slug: page.slug,
+      url: page.url,
+      title: "Updated",
+      description: "Updated description",
+      frontmatter: {
+        order: 2,
+        badge: "New",
+        icon: "sparkles",
+        toc: false,
+      },
+    });
+    expect(pages).toHaveLength(1);
+    expect(pages[0].title).toBe("Updated");
   });
 
   test("adds plugin and hook metadata to failures while retaining the cause", async () => {
@@ -237,6 +318,45 @@ describe("plugin lifecycle manager", () => {
       pageRoute: "/guide/start",
       sourcePath: "/content/guide/start.mdx",
     });
+  });
+
+  test("retains the original cause for context and build-end failures", async () => {
+    const contextCause = new Error("context failure");
+    const contextLifecycle = manager([{
+      name: "context-failure",
+      configResolved: () => { throw contextCause; },
+    }]);
+    await expect(contextLifecycle.configResolved()).rejects.toMatchObject({
+      hook: "configResolved",
+      cause: contextCause,
+    });
+
+    const buildEndCause = new Error("build ended unsuccessfully");
+    const buildEndLifecycle = manager([{
+      name: "build-end-failure",
+      buildEnd: () => { throw buildEndCause; },
+    }]);
+    await expect(buildEndLifecycle.buildEnd({
+      success: false,
+      outputDir: "/out",
+      pages: [],
+    })).rejects.toMatchObject({
+      hook: "buildEnd",
+      cause: buildEndCause,
+    });
+  });
+
+  test("passes failed build results to buildEnd without changing their status", async () => {
+    let received!: { success: boolean; outputDir: string; pages: readonly FolioPage[] };
+    const lifecycle = manager([{
+      name: "failed-build-observer",
+      buildEnd: (result) => { received = result; },
+    }]);
+
+    await lifecycle.buildEnd({ success: false, outputDir: "/out", pages: [] });
+
+    expect(received.success).toBe(false);
+    expect(received.outputDir).toBe("/out");
   });
 
   test("keeps Date and RegExp snapshot values immutable", async () => {
