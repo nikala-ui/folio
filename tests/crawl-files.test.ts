@@ -132,4 +132,48 @@ describe("generated crawl files", () => {
       await rm(root, { recursive: true, force: true });
     }
   }, 30_000);
+
+  test("loads registered plugins from docs.config.ts and isolates build state", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-config-plugin-"));
+    const firstOutput = path.join(root, "first");
+    const secondOutput = path.join(root, "second");
+    await mkdir(path.join(root, "docs"));
+    await writeFile(path.join(root, "docs.config.ts"), `
+      export default {
+        title: "Config Plugin Docs",
+        plugins: [{
+          name: "config-loaded-plugin",
+          pageTransformed(page) {
+            return page.url === "/guide"
+              ? { ...page, title: "Config Transformed Guide", frontmatter: { ...page.frontmatter, order: -1 } }
+              : page;
+          },
+          buildEnd(result) {
+            globalThis.__folioResults ??= [];
+            globalThis.__folioResults.push(result);
+          }
+        }]
+      };
+    `);
+    await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Home\n---\n\n# Home\n");
+    await writeFile(path.join(root, "docs", "guide.mdx"), "---\ntitle: Guide\n---\n\n# Guide\n");
+    await writeFile(path.join(root, "docs", "api.mdx"), "---\ntitle: API\n---\n\n# API\n");
+
+    try {
+      await buildDocs({ root, outDir: "first" });
+      await buildDocs({ root, outDir: "second" });
+      const firstGuide = await readFile(path.join(firstOutput, "guide", "index.html"), "utf8");
+      const secondGuide = await readFile(path.join(secondOutput, "guide", "index.html"), "utf8");
+
+      expect(firstGuide).toContain("Config Transformed Guide");
+      expect(secondGuide).toContain("Config Transformed Guide");
+      const buildResults = (globalThis as typeof globalThis & { __folioResults?: Array<{ outputDir: string; pages: readonly unknown[] }> }).__folioResults;
+      expect(buildResults).toHaveLength(2);
+      expect(buildResults?.map((result) => result.outputDir)).toEqual([firstOutput, secondOutput]);
+      expect(buildResults?.every((result) => result.pages.length === 3)).toBe(true);
+    } finally {
+      delete (globalThis as typeof globalThis & { __folioResults?: unknown }).__folioResults;
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 30_000);
 });
