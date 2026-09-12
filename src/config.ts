@@ -63,6 +63,8 @@ const CONFIG_FILENAMES = [
   "nikala.config.js",
 ];
 
+let configReloadRevision = 0;
+
 export const loadConfig = resolveDocsConfig;
 
 export async function resolveDocsConfig(cwd: string = process.cwd()): Promise<DocsConfig> {
@@ -72,40 +74,55 @@ export async function resolveDocsConfig(cwd: string = process.cwd()): Promise<Do
       try {
         // Config is reloaded by the dev watcher without restarting the
         // process. Bust Bun/Node's ESM module cache so changed values apply.
-        const mod = await import(`${pathToFileURL(fullPath).href}?t=${Date.now()}`);
-        const resolvedUserConfig: DocsConfig = mod.default || mod.config || {};
-        validateFolioPlugins(resolvedUserConfig.plugins);
-        return {
-          ...DEFAULT_DOCS_CONFIG,
-          ...resolvedUserConfig,
-          theme: {
-          ...DEFAULT_DOCS_CONFIG.theme,
-          ...resolvedUserConfig.theme,
-        },
-          navigation: {
-            ...DEFAULT_DOCS_CONFIG.navigation,
-            ...resolvedUserConfig.navigation,
-            sidebar: {
-              ...DEFAULT_DOCS_CONFIG.navigation?.sidebar,
-              ...resolvedUserConfig.navigation?.sidebar,
+        const cacheKey = `${Date.now()}-${++configReloadRevision}`;
+        let importPath = fullPath;
+        let temporaryConfigPath: string | undefined;
+        if (process.versions.bun) {
+          temporaryConfigPath = path.join(
+            path.dirname(fullPath),
+            `.folio-config-${cacheKey}-${path.basename(fullPath)}`,
+          );
+          await fs.copyFile(fullPath, temporaryConfigPath);
+          importPath = temporaryConfigPath;
+        }
+        try {
+          const mod = await import(`${pathToFileURL(importPath).href}?t=${cacheKey}`);
+          const resolvedUserConfig: DocsConfig = mod.default || mod.config || {};
+          validateFolioPlugins(resolvedUserConfig.plugins);
+          return {
+            ...DEFAULT_DOCS_CONFIG,
+            ...resolvedUserConfig,
+            theme: {
+            ...DEFAULT_DOCS_CONFIG.theme,
+            ...resolvedUserConfig.theme,
+          },
+            navigation: {
+              ...DEFAULT_DOCS_CONFIG.navigation,
+              ...resolvedUserConfig.navigation,
+              sidebar: {
+                ...DEFAULT_DOCS_CONFIG.navigation?.sidebar,
+                ...resolvedUserConfig.navigation?.sidebar,
+              },
             },
-          },
-          shiki: {
-            ...DEFAULT_DOCS_CONFIG.shiki,
-            ...resolvedUserConfig.shiki,
-            themes: {
-              ...DEFAULT_DOCS_CONFIG.shiki?.themes,
-              ...resolvedUserConfig.shiki?.themes,
+            shiki: {
+              ...DEFAULT_DOCS_CONFIG.shiki,
+              ...resolvedUserConfig.shiki,
+              themes: {
+                ...DEFAULT_DOCS_CONFIG.shiki?.themes,
+                ...resolvedUserConfig.shiki?.themes,
+              },
             },
-          },
-          seo: {
-            ...resolvedUserConfig.seo,
-          },
-          search: {
-            ...DEFAULT_DOCS_CONFIG.search,
-            ...resolvedUserConfig.search,
-          },
-        };
+            seo: {
+              ...resolvedUserConfig.seo,
+            },
+            search: {
+              ...DEFAULT_DOCS_CONFIG.search,
+              ...resolvedUserConfig.search,
+            },
+          };
+        } finally {
+          if (temporaryConfigPath) await fs.remove(temporaryConfigPath);
+        }
       } catch (error) {
         if (error instanceof Error && error.message.startsWith("[folio]")) throw error;
         console.warn(`[folio] Failed to load config from ${filename}:`, error);

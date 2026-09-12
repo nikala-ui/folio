@@ -1,9 +1,14 @@
+import os from "node:os";
+import path from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import {
   createFolioPluginLifecycleManager,
   FolioPluginHookError,
 } from "../src/core/plugin-lifecycle.js";
 import type { FolioPage, FolioPlugin } from "../src/plugin.js";
+import { nikalaDocsPlugin } from "../src/server/plugin/index.js";
+import { RESOLVED_TREE_ID } from "../src/server/plugin/constants.js";
 
 const page: FolioPage = {
   slug: "guide/start",
@@ -393,5 +398,41 @@ describe("plugin lifecycle manager", () => {
     expect(() => metadata.sourcePattern.lastIndex = 0).toThrow();
     expect(sourceDate.getTime()).toBe(Date.parse("2025-01-02T03:04:05.000Z"));
     expect(sourcePattern.lastIndex).toBe(1);
+  });
+
+  test("replaces the lifecycle session when the development config reloads", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-config-reload-"));
+    const configPath = path.join(root, "docs.config.ts");
+    try {
+      await mkdir(path.join(root, "docs"));
+      await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Home\n---\n\n# Home\n");
+      await writeFile(configPath, `export default { title: "First", plugins: [{ name: "first", pageTransformed: (page) => ({ ...page, title: "First title" }) }] };`);
+
+      const plugin = nikalaDocsPlugin({ configRoot: root });
+      const configResolved = plugin.configResolved as (config: unknown) => Promise<void>;
+      await configResolved({ command: "serve", build: { ssr: false } });
+      const load = plugin.load as (id: string) => Promise<string | null>;
+      expect(await load(RESOLVED_TREE_ID)).toContain("First title");
+
+      let configChange: ((file: string) => Promise<void>) | undefined;
+      const configureServer = plugin.configureServer as (server: unknown) => void;
+      configureServer({
+        watcher: {
+          add() {},
+          on(event: string, handler: (file: string) => Promise<void>) {
+            if (event === "change") configChange = handler;
+          },
+        },
+        moduleGraph: { getModuleById() { return undefined; } },
+        ws: { send() {} },
+      });
+
+      await writeFile(configPath, `export default { title: "Second", plugins: [{ name: "second", pageTransformed: (page) => ({ ...page, title: "Second title" }) }] };`);
+      await configChange?.(configPath);
+      expect(await load(RESOLVED_TREE_ID)).toContain("Second title");
+      expect(await load(RESOLVED_TREE_ID)).not.toContain("First title");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

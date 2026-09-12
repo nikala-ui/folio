@@ -30,15 +30,25 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
   let resolvedConfig: DocsConfig = options.config || { title: "Folio" };
   let isSsrBuild = false;
   let lifecycleSession = options.lifecycleSession;
+  let lifecycleMode: "development" | "production" = "production";
   const moduleDir = getServerModuleDir();
   const state = () => ({ rootDir, docsDir, resolvedConfig, optionsConfig: options.config, lifecycleSession, isSsrBuild });
   const loadVirtualModule = createVirtualModuleLoader(state, moduleDir);
+
+  const createLifecycleSession = () => createFolioBuildSession({
+    plugins: resolvedConfig.plugins,
+    config: resolvedConfig,
+    rootDir,
+    contentDir: docsDir,
+    mode: lifecycleMode,
+  });
 
   return {
     name: "vite-plugin-folio",
     enforce: "pre",
     async configResolved(viteConfig) {
       isSsrBuild = Boolean(viteConfig.build.ssr);
+      lifecycleMode = viteConfig.command === "serve" ? "development" : "production";
       rootDir = path.resolve(options.configRoot || process.cwd());
       if (!options.config) resolvedConfig = await loadConfig(options.configRoot || rootDir);
       if (!options.docsDir) {
@@ -47,7 +57,7 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
         else if (await fs.pathExists(path.resolve(rootDir, "content"))) docsDir = path.resolve(rootDir, "content");
         else docsDir = rootDir;
       } else docsDir = path.resolve(rootDir, options.docsDir);
-      lifecycleSession ||= createFolioBuildSession({ plugins: resolvedConfig.plugins, config: resolvedConfig, rootDir, contentDir: docsDir, mode: viteConfig.command === "serve" ? "development" : "production" });
+      lifecycleSession ||= createLifecycleSession();
       await lifecycleSession.start();
     },
     transformIndexHtml(html) {
@@ -109,6 +119,7 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
           if (!options.config) {
             resolvedConfig = await loadConfig(rootDir);
             if (resolvedConfig.contentDir) docsDir = path.resolve(rootDir, resolvedConfig.contentDir);
+            lifecycleSession = createLifecycleSession();
           }
           return invalidate(true);
         }
