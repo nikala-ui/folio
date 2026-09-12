@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import { buildDocs } from "../src/server/index.js";
 import type { FolioPlugin } from "../src/plugin.js";
@@ -164,9 +164,13 @@ describe("generated crawl files", () => {
       await buildDocs({ root, outDir: "second" });
       const firstGuide = await readFile(path.join(firstOutput, "guide", "index.html"), "utf8");
       const secondGuide = await readFile(path.join(secondOutput, "guide", "index.html"), "utf8");
+      const firstAssets = await readdir(path.join(firstOutput, "assets"));
+      const firstBundle = (await Promise.all(firstAssets.map((asset) => readFile(path.join(firstOutput, "assets", asset), "utf8")))).join("\n");
 
       expect(firstGuide).toContain("Config Transformed Guide");
       expect(secondGuide).toContain("Config Transformed Guide");
+      expect(firstBundle.includes("Config Transformed Guide")).toBe(true);
+      expect(firstBundle.includes("order:-1")).toBe(true);
       const buildResults = (globalThis as typeof globalThis & { __folioResults?: Array<{ outputDir: string; pages: readonly unknown[] }> }).__folioResults;
       expect(buildResults).toHaveLength(2);
       expect(buildResults?.map((result) => result.outputDir)).toEqual([firstOutput, secondOutput]);
