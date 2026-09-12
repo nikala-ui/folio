@@ -1,7 +1,7 @@
 import { createMemo, type Accessor } from "solid-js";
+import { buildPagination } from "../../core/route-tree.js";
 import type { BreadcrumbItemData } from "../../themes/types.js";
 import type { PageData, SidebarItem, TocItem } from "../../types.js";
-import { flattenSidebarItems } from "../utils/sidebar.js";
 
 export function createPageNavigation(currentPage: Accessor<PageData | undefined>, pages: PageData[], sidebarTree: SidebarItem[]) {
   const breadcrumbs = createMemo<BreadcrumbItemData[]>(() => {
@@ -23,27 +23,11 @@ export function createPageNavigation(currentPage: Accessor<PageData | undefined>
   });
 
   const toc = createMemo<TocItem[]>(() => currentPage()?.toc || []);
-  const flatPages = createMemo<PageData[]>(() => {
-    const visiblePages = new Map(pages.filter((page) => page.frontmatter?.hidden !== true).map((page) => [page.url, page] as const));
-    return flattenSidebarItems(sidebarTree).map((item) => visiblePages.get(item.href)).filter((page): page is PageData => Boolean(page));
-  });
-  const prevPage = createMemo(() => {
+  const pagination = createMemo(() => {
     const page = currentPage();
-    if (!page) return undefined;
-    const ordered = flatPages();
-    const index = ordered.findIndex((item) => item.url === page.url);
-    if (index <= 0) return undefined;
-    const previous = ordered[index - 1];
-    return { title: previous.title, href: previous.url };
+    return page ? buildPagination(pages, page.url, sidebarTree) : {};
   });
-  const nextPage = createMemo(() => {
-    const page = currentPage();
-    if (!page) return undefined;
-    const ordered = flatPages();
-    const index = ordered.findIndex((item) => item.url === page.url);
-    if (index < 0 || index >= ordered.length - 1) return undefined;
-    const next = ordered[index + 1];
-    return { title: next.title, href: next.url };
-  });
+  const prevPage = createMemo(() => pagination().prev);
+  const nextPage = createMemo(() => pagination().next);
   return { breadcrumbs, toc, prevPage, nextPage };
 }

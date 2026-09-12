@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
+import { loadConfig } from "../src/config.js";
 import { buildDocs } from "../src/server/index.js";
+import { createFolioBuildSession } from "../src/server/plugin/lifecycle.js";
+import { buildSidebarTree } from "../src/core/route-tree.js";
+import { createPageNavigation } from "../src/client/navigation/page-navigation.js";
 import type { FolioPlugin } from "../src/plugin.js";
 
 async function createFixture(siteUrl?: string) {
@@ -56,6 +60,17 @@ describe("generated crawl files", () => {
     try {
       await assert.rejects(readFile(path.join(fixture.output, "sitemap.xml"), "utf8"));
       await assert.rejects(readFile(path.join(fixture.output, "robots.txt"), "utf8"));
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  test("keeps plugin-less builds unchanged", async () => {
+    const fixture = await createFixture();
+    try {
+      const guideHtml = await readFile(path.join(fixture.output, "guide", "index.html"), "utf8");
+      expect(guideHtml).toContain("<h1>Guide</h1>");
+      expect(guideHtml).not.toContain("Config Transformed Guide");
     } finally {
       await rm(fixture.root, { recursive: true, force: true });
     }
@@ -147,36 +162,52 @@ describe("generated crawl files", () => {
             return page.url === "/guide"
               ? { ...page, title: "Config Transformed Guide", frontmatter: { ...page.frontmatter, order: -1 } }
               : page;
-          },
-          buildEnd(result) {
-            globalThis.__folioResults ??= [];
-            globalThis.__folioResults.push(result);
           }
         }]
       };
     `);
-    await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Home\n---\n\n# Home\n");
-    await writeFile(path.join(root, "docs", "guide.mdx"), "---\ntitle: Guide\n---\n\n# Guide\n");
-    await writeFile(path.join(root, "docs", "api.mdx"), "---\ntitle: API\n---\n\n# API\n");
+    await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Home\ndescription: Home page\n---\n\n# Home\n");
+    await writeFile(path.join(root, "docs", "guide.mdx"), "---\ntitle: Guide\ndescription: Guide page\n---\n\n# Guide\n");
+    await writeFile(path.join(root, "docs", "api.mdx"), "---\ntitle: API\ndescription: API page\n---\n\n# API\n");
 
     try {
-      await buildDocs({ root, outDir: "first" });
-      await buildDocs({ root, outDir: "second" });
+      const config = await loadConfig(root);
+      const firstSession = createFolioBuildSession({
+        plugins: config.plugins,
+        config,
+        rootDir: root,
+        contentDir: path.join(root, "docs"),
+        mode: "production",
+      });
+      await buildDocs({ root, outDir: "first", lifecycleSession: firstSession });
+      await rm(path.join(root, "docs", "api.mdx"));
+      const secondSession = createFolioBuildSession({
+        plugins: config.plugins,
+        config,
+        rootDir: root,
+        contentDir: path.join(root, "docs"),
+        mode: "production",
+      });
+      await buildDocs({ root, outDir: "second", lifecycleSession: secondSession });
       const firstGuide = await readFile(path.join(firstOutput, "guide", "index.html"), "utf8");
       const secondGuide = await readFile(path.join(secondOutput, "guide", "index.html"), "utf8");
       const firstAssets = await readdir(path.join(firstOutput, "assets"));
       const firstBundle = (await Promise.all(firstAssets.map((asset) => readFile(path.join(firstOutput, "assets", asset), "utf8")))).join("\n");
+      const firstPages = [...await firstSession.pages()];
 
-      expect(firstGuide).toContain("Config Transformed Guide");
+      expect(firstGuide).toContain("<title>Config Transformed Guide - Config Plugin Docs</title>");
       expect(secondGuide).toContain("Config Transformed Guide");
       expect(firstBundle.includes("Config Transformed Guide")).toBe(true);
       expect(firstBundle.includes("order:-1")).toBe(true);
-      const buildResults = (globalThis as typeof globalThis & { __folioResults?: Array<{ outputDir: string; pages: readonly unknown[] }> }).__folioResults;
-      expect(buildResults).toHaveLength(2);
-      expect(buildResults?.map((result) => result.outputDir)).toEqual([firstOutput, secondOutput]);
-      expect(buildResults?.every((result) => result.pages.length === 3)).toBe(true);
+      await assert.rejects(access(path.join(secondOutput, "api", "index.html")));
+      const guide = firstPages.find((page) => page.url === "/guide");
+      const sidebarTree = buildSidebarTree(firstPages);
+      const sidebarOutput = JSON.stringify(sidebarTree);
+      expect(sidebarOutput).toContain("Config Transformed Guide");
+      expect(sidebarOutput.indexOf("Config Transformed Guide")).toBeLessThan(sidebarOutput.indexOf("API"));
+      const navigation = createPageNavigation(() => guide, firstPages, sidebarTree);
+      expect(navigation.nextPage()).toEqual({ title: "API", href: "/api" });
     } finally {
-      delete (globalThis as typeof globalThis & { __folioResults?: unknown }).__folioResults;
       await rm(root, { recursive: true, force: true });
     }
   }, 30_000);

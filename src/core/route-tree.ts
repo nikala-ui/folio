@@ -187,13 +187,15 @@ export function buildConfiguredSidebarTree(items: SidebarItem[], pages: PageData
 
 export function buildPagination(
   pages: PageData[],
-  currentUrl: string
+  currentUrl: string,
+  sidebarTree?: SidebarItem[],
 ): { prev?: { title: string; href: string }; next?: { title: string; href: string } } {
   const currentPage = pages.find((p) => p.url === currentUrl);
 
   const navigationPages = pages.filter((page) => page.url !== "/");
-  const sidebar = buildSidebarTree(navigationPages);
-  const flattened = flattenSidebarItems(sidebar);
+  const sidebar = sidebarTree || buildSidebarTree(navigationPages);
+  const visibleUrls = new Set(pages.filter((page) => page.frontmatter?.hidden !== true).map((page) => page.url));
+  const flattened = flattenSidebarItems(sidebar).filter((item) => visibleUrls.has(item.href));
   const currentIndex = flattened.findIndex((item) => item.href === currentUrl);
 
   if (currentIndex === -1) {
