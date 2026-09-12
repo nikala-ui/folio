@@ -35,3 +35,49 @@ Development reloads additionally have a regression test that performs eight
 consecutive reloads and verifies that the catalog remains one page and hook
 counts remain bounded. This checks lifecycle state isolation; it is not a
 claim that JavaScript heap usage is constant under every host/runtime.
+
+## Reproducible memory evidence
+
+Run the long-running evidence probe with:
+
+```bash
+bun run plugin:memory
+```
+
+The probe creates a temporary 100-page consumer, performs 100 development
+reloads, forces garbage collection when the Bun runtime exposes it, records
+heap/RSS samples, and writes V8 heap snapshots plus `report.json` to a
+retained directory under `/tmp/folio-plugin-evidence-*`. The temporary consumer
+itself is removed after the run and is never written to the repository.
+
+The recorded run on the development machine produced these facts:
+
+- development hooks were called exactly `configResolved: 101`,
+  `buildStart: 101`, and `pageTransformed: 10100` for 100 pages and 100
+  reloads;
+- the catalog remained exactly 100 pages on every reload;
+- after forced garbage collection, server `heapUsed` changed from
+  `37,482,159` to `33,116,140` bytes (`-4,366,019`), while RSS changed by
+  `+6,524,928` bytes;
+- samples after the initial warm-up stayed around 33–40 MB heap rather than
+  growing linearly with reload count;
+- the production build completed and called the plugin once for
+  `configResolved`, once for `buildStart`, and 100 times for
+  `pageTransformed`.
+
+The production build process changed RSS by `+836,321,280` bytes in this run.
+That is an observation about the complete Vite/Shiki build process, not proof
+of a plugin-only leak; the probe therefore reports it without treating it as
+an unexplained plugin regression. The heap snapshots provide inspectable
+artifacts and a name-inventory diff, but a retained-path review in Chrome
+DevTools is still required before claiming a mathematical proof that no host
+or dependency retains memory.
+
+The browser HMR probe (`bun run test:browser-hmr`) performs 25 consecutive
+MDX/plugin reloads and forces browser garbage collection before each sample.
+The final run stayed at 2 documents, 270 DOM nodes, and 38 event listeners
+throughout the sampled sequence. The final JS heap was `19,127,336` bytes
+versus `18,987,688` before the stress sequence (`+139,648` bytes). It also
+verified the final rendered heading and document title, so the memory check is
+coupled to real browser behavior rather than a server-only lifecycle
+assertion.

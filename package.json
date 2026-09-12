@@ -56,6 +56,7 @@
     "test:browser-hmr": "bun tests/dev-hmr.playwright.ts",
     "test:generated": "bun tests/generated-project.smoke.ts",
     "plugin:perf": "bun scripts/plugin-performance.ts",
+    "plugin:memory": "bun scripts/plugin-memory-evidence.ts",
     "package:check": "bun run build && bun scripts/check-package.ts",
     "bundle:check": "bun run docs:build && bun scripts/check-bundle.ts",
     "bump": "bun scripts/bump.ts",
