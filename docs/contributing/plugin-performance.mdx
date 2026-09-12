@@ -1,0 +1,37 @@
+---
+title: Plugin performance notes
+description: Reproducible baseline measurements for plugin lifecycle snapshots.
+order: 8
+icon: gauge
+---
+
+The plugin lifecycle protects configuration, pages, and results with immutable
+snapshots. That protection has a measurable cost because each plugin receives a
+fresh context snapshot. Run the repository baseline with:
+
+```bash
+bun run plugin:perf
+```
+
+The script measures five snapshots of a 1,000-page catalog and eight
+sequential `pageTransformed` plugins over a 100-page subset. A representative
+run on the development machine reported:
+
+```text
+snapshotMs: 32.28
+sequentialPageHookMs: 4630.37
+heapUsedBytes: 50632919
+```
+
+These values are a baseline, not a performance promise; timing and heap usage
+vary with the runtime and machine. The result shows that page-hook context
+snapshots are the dominant cost for large catalogs and many plugins. The
+current implementation therefore keeps the stronger immutable contract and
+does not silently replace it with a mutable or selectively protected context.
+Any future selective-snapshot or read-only-context optimization must preserve
+the public immutability guarantee and update this measurement.
+
+Development reloads additionally have a regression test that performs eight
+consecutive reloads and verifies that the catalog remains one page and hook
+counts remain bounded. This checks lifecycle state isolation; it is not a
+claim that JavaScript heap usage is constant under every host/runtime.

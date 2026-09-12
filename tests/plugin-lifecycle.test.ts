@@ -278,6 +278,28 @@ describe("plugin lifecycle manager", () => {
     });
   });
 
+  test("preserves cyclic references without exposing mutable source objects", async () => {
+    const metadata: { name: string; self?: unknown } = { name: "cycle" };
+    metadata.self = metadata;
+    const sourcePage = {
+      ...page,
+      frontmatter: { title: "Start", metadata },
+    } as FolioPage;
+    let received!: FolioPage;
+    const lifecycle = manager([{
+      name: "cycle-observer",
+      pageCollected: (current) => { received = current; },
+    }]);
+
+    await lifecycle.pageCollected(sourcePage);
+
+    const exposed = received.frontmatter.metadata as { name: string; self: unknown };
+    expect(exposed.self).toBe(exposed);
+    expect(() => (exposed.name as string) = "changed").toThrow();
+    expect(metadata.name).toBe("cycle");
+    expect(metadata.self).toBe(metadata);
+  });
+
   test("adds page route, source path, and mode to page-hook failures", async () => {
     const lifecycle = manager([{
       name: "page-check",
