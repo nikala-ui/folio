@@ -140,6 +140,13 @@ the full validation set before opening a pull request.
 ## Git and pull requests
 
 - Keep commits focused and logically atomic.
+- `main` is protected for this workflow: do not check it out, modify it,
+  merge into it, rebase onto it, or push to it unless the user gives explicit
+  permission.
+- Each roadmap milestone must use its own branch created from `development`.
+- Completed milestone branches may be merged only into `development`.
+- Treat `development` as the integration branch for milestone work; never use
+  `main` as the integration target.
 - Do not commit `node_modules/`, build output, local test projects, editor
   files, credentials, or unrelated generated files.
 - Do not reformat unrelated code.
