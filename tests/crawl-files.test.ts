@@ -94,6 +94,13 @@ describe("generated crawl files", () => {
       generate: () => { calls.push("generate"); },
       buildEnd: (result) => { calls.push(`buildEnd:${result.success}`); },
     };
+    const secondPlugin: FolioPlugin = {
+      name: "metadata-chain",
+      pageTransformed: (page) => {
+        calls.push(`second-transformed:${page.url}`);
+        return page.url === "/guide" ? { ...page, title: "Chained Guide" } : page;
+      },
+    };
 
     await mkdir(path.join(root, "docs"));
     await writeFile(path.join(root, "docs.config.ts"), "export default {};");
@@ -101,14 +108,15 @@ describe("generated crawl files", () => {
     await writeFile(path.join(root, "docs", "guide.mdx"), "---\ntitle: Guide\n---\n\n# Guide\n");
 
     try {
-      await buildDocs({ root, outDir: "out", config: { title: "Test Docs", plugins: [plugin] } });
+      await buildDocs({ root, outDir: "out", config: { title: "Test Docs", plugins: [plugin, secondPlugin] } });
       const guideHtml = await readFile(path.join(output, "guide", "index.html"), "utf8");
 
-      expect(guideHtml).toContain("Transformed Guide");
+      expect(guideHtml).toContain("Chained Guide");
       expect(calls[0]).toBe("configResolved");
       expect(calls[1]).toBe("buildStart");
       expect(calls.filter((call) => call.startsWith("collected:")).length).toBe(2);
       expect(calls.filter((call) => call.startsWith("transformed:")).length).toBe(2);
+      expect(calls.indexOf("second-transformed:/guide")).toBeGreaterThan(calls.indexOf("transformed:/guide"));
       expect(calls.indexOf("generate")).toBeGreaterThan(calls.findIndex((call) => call.startsWith("transformed:")));
       expect(calls.at(-1)).toBe("buildEnd:true");
     } finally {
@@ -119,9 +127,10 @@ describe("generated crawl files", () => {
   test("stops a production build on plugin failure and reports a failed result", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "folio-plugin-failure-"));
     const calls: string[] = [];
+    const cause = new Error("invalid page metadata");
     const plugin: FolioPlugin = {
       name: "failing-build-plugin",
-      pageTransformed: () => { throw new Error("invalid page metadata"); },
+      pageTransformed: () => { throw cause; },
       buildEnd: (result) => { calls.push(`buildEnd:${result.success}`); },
     };
 
@@ -142,6 +151,9 @@ describe("generated crawl files", () => {
       }
       expect(failure).toBeInstanceOf(Error);
       expect((failure as Error).message).toContain('Plugin "failing-build-plugin" hook "pageTransformed" failed');
+      expect((failure as Error).message).toContain('route "/"');
+      expect((failure as Error).message).toContain('source "index.mdx"');
+      expect((failure as Error).message).toContain('mode "production"');
       expect(calls).toEqual(["buildEnd:false"]);
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -154,6 +166,9 @@ describe("generated crawl files", () => {
     const secondOutput = path.join(root, "second");
     await mkdir(path.join(root, "docs"));
     await writeFile(path.join(root, "docs.config.ts"), `
+      import path from "node:path";
+      import { writeFile } from "node:fs/promises";
+
       export default {
         title: "Config Plugin Docs",
         plugins: [{
@@ -162,6 +177,12 @@ describe("generated crawl files", () => {
             return page.url === "/guide"
               ? { ...page, title: "Config Transformed Guide", frontmatter: { ...page.frontmatter, order: -1 } }
               : page;
+          },
+          async buildEnd(result) {
+            await writeFile(
+              path.join(result.outputDir, "plugin-build-result.json"),
+              JSON.stringify({ success: result.success, outputDir: result.outputDir, urls: result.pages.map((page) => page.url) }),
+            );
           }
         }]
       };
@@ -191,12 +212,16 @@ describe("generated crawl files", () => {
       await buildDocs({ root, outDir: "second", lifecycleSession: secondSession });
       const firstGuide = await readFile(path.join(firstOutput, "guide", "index.html"), "utf8");
       const secondGuide = await readFile(path.join(secondOutput, "guide", "index.html"), "utf8");
+      const firstBuildResult = JSON.parse(await readFile(path.join(firstOutput, "plugin-build-result.json"), "utf8")) as { success: boolean; outputDir: string; urls: string[] };
+      const secondBuildResult = JSON.parse(await readFile(path.join(secondOutput, "plugin-build-result.json"), "utf8")) as { success: boolean; outputDir: string; urls: string[] };
       const firstAssets = await readdir(path.join(firstOutput, "assets"));
       const firstBundle = (await Promise.all(firstAssets.map((asset) => readFile(path.join(firstOutput, "assets", asset), "utf8")))).join("\n");
       const firstPages = [...await firstSession.pages()];
 
       expect(firstGuide).toContain("<title>Config Transformed Guide - Config Plugin Docs</title>");
       expect(secondGuide).toContain("Config Transformed Guide");
+      expect(firstBuildResult).toEqual({ success: true, outputDir: firstOutput, urls: ["/", "/api", "/guide"] });
+      expect(secondBuildResult).toEqual({ success: true, outputDir: secondOutput, urls: ["/", "/guide"] });
       expect(firstBundle.includes("Config Transformed Guide")).toBe(true);
       expect(firstBundle.includes("order:-1")).toBe(true);
       await assert.rejects(access(path.join(secondOutput, "api", "index.html")));
