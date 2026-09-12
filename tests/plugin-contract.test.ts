@@ -40,4 +40,18 @@ describe("public Folio plugin contract", () => {
     expect(defineDocsConfig({ plugins: [plugin] }).plugins?.[0]).toBe(plugin);
     expect(nikalaDocsPlugin().name).toBe("vite-plugin-folio");
   });
+
+  test("documents the stable hook surface as optional lifecycle callbacks", () => {
+    const plugin: FolioPlugin = {
+      name: "lifecycle-contract",
+      configResolved: () => undefined,
+      buildStart: () => undefined,
+      pageCollected: () => undefined,
+      pageTransformed: (page) => page,
+      generate: () => undefined,
+      buildEnd: () => undefined,
+    };
+
+    expect(plugin.name).toBe("lifecycle-contract");
+  });
 });

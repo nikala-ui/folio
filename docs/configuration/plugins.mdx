@@ -48,8 +48,42 @@ error.
 
 The context and result types are exported from `@nikala-ui/folio`. The
 standalone lifecycle manager invokes these hooks when called by an integrating
-build tool; Folio's build command does not wire them in yet. Hook inputs are
-immutable snapshots, so plugins cannot mutate Folio's configuration or
-collected page data. Plugin packages should keep feature-specific behavior
-(such as i18n, API documentation, or workspace discovery) outside the core
-package.
+build tool; Folio's build command does not wire them in yet. The current
+contract is intentionally frozen before build-pipeline integration.
+
+## Lifecycle order
+
+An integrating build tool must invoke hooks in this order:
+
+```text
+load config
+  -> configResolved
+  -> buildStart
+  -> content scan
+  -> pageCollected (for each page)
+  -> pageTransformed (for each page and plugin)
+  -> route tree, sidebar, and pagination
+  -> MDX compilation
+  -> artifact generation
+  -> generate
+  -> buildEnd
+```
+
+Hooks run sequentially in registration order. A hook failure stops the current
+operation and is reported as `FolioPluginHookError`, preserving the original
+error in `cause` and adding the plugin name, hook, mode, and page location when
+available.
+
+`pageTransformed` may update a page's metadata, including its title,
+description, order, badge, icon, table of contents, and frontmatter-derived
+values. It must preserve the page route identity (`slug` and `url`). The first
+contract does not allow plugins to add routes or replace MDX source content.
+
+Hook inputs are immutable snapshots, so plugins cannot mutate Folio's
+configuration or collected page data. This includes nested objects, arrays,
+maps, sets, dates, regular expressions, and supported provider instances. The
+original config and page objects remain unchanged.
+
+Plugin packages should keep feature-specific behavior (such as i18n, API
+documentation, or workspace discovery) outside the core package. The build
+command integration and development/watch lifecycle are separate milestones.

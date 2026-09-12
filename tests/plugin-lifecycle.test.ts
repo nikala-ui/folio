@@ -115,6 +115,23 @@ describe("plugin lifecycle manager", () => {
     expect(lifecycle.getPages()[0].title).toBe("Start");
   });
 
+  test("gives buildEnd an immutable result snapshot", async () => {
+    let received!: { success: boolean; outputDir: string; pages: readonly FolioPage[] };
+    const lifecycle = manager([{
+      name: "result-observer",
+      buildEnd: (result) => { received = result; },
+    }]);
+    const result = { success: true, outputDir: "/out", pages: [page] };
+
+    await lifecycle.buildEnd(result);
+
+    expect(Object.isFrozen(received)).toBe(true);
+    expect(Object.isFrozen(received.pages)).toBe(true);
+    expect(() => (received.outputDir as string) = "/other").toThrow();
+    expect(() => (received.pages as FolioPage[]).push(page)).toThrow();
+    expect(result.outputDir).toBe("/out");
+  });
+
   test("deeply snapshots maps, sets, arrays, plain objects, and providers", async () => {
     class Provider {
       name = "custom";
