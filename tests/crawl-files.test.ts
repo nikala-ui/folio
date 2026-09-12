@@ -241,6 +241,40 @@ describe("generated crawl files", () => {
     }
   }, 30_000);
 
+  test("keeps development lifecycle state bounded across repeated reloads", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-dev-repeated-reload-"));
+    let starts = 0;
+    let transformed = 0;
+    const plugin: FolioPlugin = {
+      name: "repeated-reload-plugin",
+      buildStart: () => { starts += 1; },
+      pageTransformed: (page) => { transformed += 1; return page; },
+    };
+    await mkdir(path.join(root, "docs"));
+    const pagePath = path.join(root, "docs", "index.mdx");
+    await writeFile(pagePath, "---\ntitle: 0\n---\n\n# 0\n");
+
+    try {
+      const session = createFolioBuildSession({
+        plugins: [plugin],
+        config: { title: "Dev Docs", plugins: [plugin] },
+        rootDir: root,
+        contentDir: path.join(root, "docs"),
+        mode: "development",
+      });
+      await session.pages();
+      for (let version = 1; version <= 8; version += 1) {
+        await writeFile(pagePath, `---\ntitle: ${version}\n---\n\n# ${version}\n`);
+        expect((await session.reload()).map((page) => String(page.title))).toEqual([String(version)]);
+        expect(session.getPages()).toHaveLength(1);
+      }
+      expect(starts).toBe(9);
+      expect(transformed).toBe(9);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   test("stops a production build on plugin failure and reports a failed result", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "folio-plugin-failure-"));
     const calls: string[] = [];
