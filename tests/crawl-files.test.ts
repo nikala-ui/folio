@@ -4,6 +4,7 @@ import path from "node:path";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import { buildDocs } from "../src/server/index.js";
+import type { FolioPlugin } from "../src/plugin.js";
 
 async function createFixture(siteUrl?: string) {
   const root = await mkdtemp(path.join(os.tmpdir(), "folio-crawl-files-"));
@@ -57,6 +58,78 @@ describe("generated crawl files", () => {
       await assert.rejects(readFile(path.join(fixture.output, "robots.txt"), "utf8"));
     } finally {
       await rm(fixture.root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  test("runs the plugin lifecycle before generating transformed pages", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-plugin-build-"));
+    const output = path.join(root, "out");
+    const calls: string[] = [];
+    const plugin: FolioPlugin = {
+      name: "build-observer",
+      configResolved: () => { calls.push("configResolved"); },
+      buildStart: () => { calls.push("buildStart"); },
+      pageCollected: (page) => { calls.push(`collected:${page.url}`); },
+      pageTransformed: (page) => {
+        calls.push(`transformed:${page.url}`);
+        return page.url === "/guide"
+          ? { ...page, title: "Transformed Guide", frontmatter: { ...page.frontmatter, order: 1 } }
+          : page;
+      },
+      generate: () => { calls.push("generate"); },
+      buildEnd: (result) => { calls.push(`buildEnd:${result.success}`); },
+    };
+
+    await mkdir(path.join(root, "docs"));
+    await writeFile(path.join(root, "docs.config.ts"), "export default {};");
+    await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Home\n---\n\n# Home\n");
+    await writeFile(path.join(root, "docs", "guide.mdx"), "---\ntitle: Guide\n---\n\n# Guide\n");
+
+    try {
+      await buildDocs({ root, outDir: "out", config: { title: "Test Docs", plugins: [plugin] } });
+      const guideHtml = await readFile(path.join(output, "guide", "index.html"), "utf8");
+
+      expect(guideHtml).toContain("Transformed Guide");
+      expect(calls[0]).toBe("configResolved");
+      expect(calls[1]).toBe("buildStart");
+      expect(calls.filter((call) => call.startsWith("collected:")).length).toBe(2);
+      expect(calls.filter((call) => call.startsWith("transformed:")).length).toBe(2);
+      expect(calls.indexOf("generate")).toBeGreaterThan(calls.findIndex((call) => call.startsWith("transformed:")));
+      expect(calls.at(-1)).toBe("buildEnd:true");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  test("stops a production build on plugin failure and reports a failed result", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-plugin-failure-"));
+    const calls: string[] = [];
+    const plugin: FolioPlugin = {
+      name: "failing-build-plugin",
+      pageTransformed: () => { throw new Error("invalid page metadata"); },
+      buildEnd: (result) => { calls.push(`buildEnd:${result.success}`); },
+    };
+
+    await mkdir(path.join(root, "docs"));
+    await writeFile(path.join(root, "docs.config.ts"), "export default {};");
+    await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Home\n---\n\n# Home\n");
+
+    try {
+      let failure: unknown;
+      try {
+        await buildDocs({
+          root,
+          outDir: "out",
+          config: { title: "Test Docs", plugins: [plugin] },
+        });
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toContain('Plugin "failing-build-plugin" hook "pageTransformed" failed');
+      expect(calls).toEqual(["buildEnd:false"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
     }
   }, 30_000);
 });

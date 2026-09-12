@@ -10,12 +10,15 @@ import { loadConfig } from "../config.js";
 import { resolveDefaultThemeMode } from "../theme-mode.js";
 import type { DocsConfig, PageData } from "../types.js";
 import { serializeModuleValue } from "./module-serialization.js";
+import { createFolioBuildSession, type FolioBuildSession } from "./plugin-lifecycle.js";
 
 export interface NikalaDocsPluginOptions {
   docsDir?: string;
   configRoot?: string;
   configFile?: string;
   config?: DocsConfig;
+  /** Shared build session used by the server orchestration layer. */
+  lifecycleSession?: FolioBuildSession;
 }
 
 const VIRTUAL_CONFIG_ID = "virtual:folio-config";
@@ -185,6 +188,7 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
   let resolvedConfig: DocsConfig = options.config || { title: "Folio" };
   let cachedPages: PageData[] = [];
   let isSsrBuild = false;
+  let lifecycleSession = options.lifecycleSession;
 
   return {
     name: "vite-plugin-folio",
@@ -195,12 +199,12 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
       // Keep Vite's internal root separate from the consuming project's root.
       // Otherwise a relative contentDir could resolve under packages/docs.
       rootDir = path.resolve(options.configRoot || process.cwd());
+      if (!options.config) {
+        resolvedConfig = await loadConfig(options.configRoot || rootDir);
+      }
       if (!options.docsDir) {
         // The config is authoritative for new projects; keep legacy auto-detection.
         const fs = await import("fs-extra");
-        if (!options.config) {
-          resolvedConfig = await loadConfig(options.configRoot || rootDir);
-        }
         if (resolvedConfig.contentDir) {
           docsDir = path.resolve(rootDir, resolvedConfig.contentDir);
         } else if (await fs.pathExists(path.resolve(rootDir, "docs"))) {
@@ -214,6 +218,14 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
         docsDir = path.resolve(rootDir, options.docsDir);
       }
 
+      lifecycleSession ||= createFolioBuildSession({
+        plugins: resolvedConfig.plugins,
+        config: resolvedConfig,
+        rootDir,
+        contentDir: docsDir,
+        mode: viteConfig.command === "serve" ? "development" : "production",
+      });
+      await lifecycleSession.start();
     },
 
     transformIndexHtml(html) {
@@ -280,7 +292,7 @@ export default config;
       }
 
       if (id === RESOLVED_TREE_ID) {
-        cachedPages = await scanContent(docsDir);
+        cachedPages = [...await lifecycleSession!.pages()];
         const directories = await scanContentDirectories(docsDir);
         const configuredSidebar = resolvedConfig.navigation?.sidebar?.nav ?? resolvedConfig.sidebar ?? "auto";
         const tree = configuredSidebar !== "auto"
@@ -294,7 +306,7 @@ export default { pages, tree };
       }
 
       if (id === RESOLVED_ROUTES_ID) {
-        cachedPages = await scanContent(docsDir);
+        cachedPages = [...await lifecycleSession!.pages()];
         const routeEntries = cachedPages.map((page) =>
           `  ${serializeModuleValue(page.url)}: () => import(${serializeModuleValue(page.filePath)})`
         );
@@ -308,7 +320,7 @@ export default routes;
       }
 
       if (id === RESOLVED_SOURCES_ID) {
-        cachedPages = await scanContent(docsDir);
+        cachedPages = [...await lifecycleSession!.pages()];
         const sourceEntries = cachedPages.map((page) =>
           `  ${serializeModuleValue(page.url)}: () => import(${serializeModuleValue(`${page.filePath}?raw`)})`
         );
@@ -364,7 +376,7 @@ export default components;
       }
 
       if (id === RESOLVED_ICONS_ID) {
-        const pages = await scanContent(docsDir);
+        const pages = await lifecycleSession!.pages();
         const names = [...new Set(pages.map((page) => page.frontmatter.icon).filter((name): name is string => typeof name === "string" && name.trim().length > 0))];
         const require = createRequire(path.join(rootDir, "package.json"));
         const entries: Array<{ name: string; specifier: string }> = [];

@@ -47,9 +47,9 @@ error.
 - `buildEnd(result, context)`
 
 The context and result types are exported from `@nikala-ui/folio`. The
-standalone lifecycle manager invokes these hooks when called by an integrating
-build tool; Folio's build command does not wire them in yet. The current
-contract is intentionally frozen before build-pipeline integration.
+Folio's production build invokes these hooks through the lifecycle manager. The
+development/watch lifecycle remains a separate milestone. The current
+contract is intentionally frozen while the build integration is verified.
 
 ## Lifecycle order
 
@@ -107,5 +107,5 @@ maps, sets, dates, regular expressions, and supported provider instances. The
 original config and page objects remain unchanged.
 
 Plugin packages should keep feature-specific behavior (such as i18n, API
-documentation, or workspace discovery) outside the core package. The build
-command integration and development/watch lifecycle are separate milestones.
+documentation, or workspace discovery) outside the core package. Development
+and watch-mode lifecycle integration remains a separate milestone.
