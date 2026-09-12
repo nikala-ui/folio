@@ -1,0 +1,377 @@
+---
+title: Create a plugin
+description: Build, register, test, and publish a typed Folio plugin.
+order: 1
+icon: puzzle
+---
+
+This guide shows how to create a Folio plugin for a documentation project. It
+covers a local plugin first, then the changes needed to publish a reusable
+plugin package.
+
+Use this page for the implementation workflow. The [plugin reference](../../configuration/plugins)
+covers the complete lifecycle contract, hook table, and compatibility rules.
+
+## What a plugin can do
+
+A Folio plugin is a named object with optional lifecycle hooks. It can:
+
+- observe the resolved configuration and build mode;
+- observe collected pages;
+- transform page metadata before the route tree, sidebar, and pagination are
+  generated;
+- write or inspect production artifacts in `generate`;
+- observe the final build result in `buildEnd`;
+- report diagnostics through the host-provided logger.
+
+The first public contract deliberately does not allow a plugin to add routes,
+replace a page's source MDX, or change a page's `slug` or `url`. Those require
+separate future APIs.
+
+## Before you start
+
+Folio loads plugins from the consumer project's `docs.config.ts`. Install Folio
+in that project and make sure the project already has a working documentation
+build:
+
+```bash
+bun add @nikala-ui/folio
+bun run build
+```
+
+For a generated project, the equivalent commands are available through the
+project's `dev`, `build`, and `preview` scripts. A plugin should be added only
+after the plugin-less build works; that gives failures an unambiguous starting
+point.
+
+## Create a local plugin
+
+Keep a local plugin in a normal source directory owned by the consumer, for
+example:
+
+```text
+src/
+└── plugins/
+    └── metadata.ts
+docs.config.ts
+```
+
+Create `src/plugins/metadata.ts`:
+
+```ts
+import { defineFolioPlugin } from "@nikala-ui/folio";
+
+export const metadataPlugin = defineFolioPlugin({
+  name: "metadata-example",
+  pageTransformed(page) {
+    if (page.description) return page;
+
+    return {
+      ...page,
+      description: `Documentation for ${page.title}`,
+    };
+  },
+});
+```
+
+Register it in the consumer's `docs.config.ts`:
+
+```ts
+import type { DocsConfig } from "@nikala-ui/folio";
+import { metadataPlugin } from "./src/plugins/metadata.js";
+
+const config: DocsConfig = {
+  title: "Project Documentation",
+  plugins: [metadataPlugin],
+};
+
+export default config;
+```
+
+`defineFolioPlugin` validates the plugin immediately. The plugin must have a
+non-empty `name`, and every supplied hook must be a function. Names must be
+unique within one `plugins` array.
+
+Run the real consumer build and inspect the generated page:
+
+```bash
+bun run build
+bun run preview
+```
+
+The transformed description is part of the generated page data. Check the
+rendered HTML and the browser page, not only the TypeScript output.
+
+## Use plugin options
+
+Use `createFolioPlugin` when a plugin needs typed options. The factory receives
+the options once and returns the validated plugin object:
+
+```ts
+import { createFolioPlugin } from "@nikala-ui/folio";
+
+interface ReadingTimeOptions {
+  wordsPerMinute: number;
+}
+
+export const readingTimePlugin = createFolioPlugin(
+  (options: ReadingTimeOptions) => ({
+    name: "reading-time",
+    pageTransformed(page) {
+      const words = page.frontmatter.wordCount;
+      if (typeof words !== "number") return page;
+
+      return {
+        ...page,
+        frontmatter: {
+          ...page.frontmatter,
+          readingMinutes: Math.max(1, Math.ceil(words / options.wordsPerMinute)),
+        },
+      };
+    },
+  }),
+  { wordsPerMinute: 200 },
+);
+```
+
+Frontmatter is typed with an index signature for plugin-owned metadata, so a
+plugin may add its own serializable fields. Preserve all fields that the
+plugin does not own by spreading the existing `frontmatter` object.
+
+## Understand the lifecycle
+
+The production sequence is:
+
+```text
+load config
+  -> configResolved
+  -> buildStart
+  -> content scan
+  -> pageCollected (each page)
+  -> pageTransformed (each plugin, sequentially)
+  -> route tree/sidebar/pagination
+  -> MDX compilation
+  -> artifact generation
+  -> generate
+  -> buildEnd
+```
+
+Plugins run sequentially in registration order. A failure stops the current
+operation. Folio reports a `FolioPluginHookError` containing the plugin name,
+hook, mode, optional page location, and the original exception in `cause`.
+
+### `configResolved`
+
+Runs after Folio has loaded and resolved the consumer configuration and before
+content scanning. Use it to inspect configuration or initialize plugin state.
+The context contains `config`, `rootDir`, `contentDir`, `pages`, `mode`, and
+`logger`.
+
+### `buildStart`
+
+Runs once before the current build or development scan starts. Use it for
+initialization that should happen before pages are collected.
+
+### `pageCollected`
+
+Receives one scanned `FolioPage` before route and navigation structures are
+built. It is observational: return values are ignored. Use it for validation,
+metrics, or collecting information for a later hook.
+
+### `pageTransformed`
+
+Receives one page and must return a page. It is the hook for metadata
+transformation. The returned page must keep the original `slug` and `url`:
+
+```ts
+pageTransformed(page) {
+  return {
+    ...page,
+    title: page.title.toUpperCase(),
+    frontmatter: {
+      ...page.frontmatter,
+      badge: "Updated",
+    },
+  };
+}
+```
+
+The transformed page is then used to build the route tree, sidebar, and
+pagination. Do not mutate the received object in place. Return a new object and
+copy nested objects that you change.
+
+### `generate`
+
+Runs after production artifacts have been generated. Production context
+includes an absolute `outputDir` and the final immutable page catalog. Use this
+hook for plugin-owned output files or a report about generated pages:
+
+```ts
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
+import { defineFolioPlugin } from "@nikala-ui/folio";
+
+export const reportPlugin = defineFolioPlugin({
+  name: "build-report",
+  async generate(context) {
+    if (!context.outputDir) return;
+
+    await writeFile(
+      path.join(context.outputDir, "build-report.json"),
+      JSON.stringify({
+        mode: context.mode,
+        pages: context.pages.map((page) => page.url),
+      }, null, 2),
+    );
+  },
+});
+```
+
+Development reloads do not run `generate`, because they do not produce a
+production artifact directory.
+
+### `buildEnd`
+
+Receives the final immutable `FolioBuildResult`. The result contains
+`success`, `outputDir`, and the final `pages` catalog. A failed build is passed
+through with `success: false`; `buildEnd` must not turn it into a successful
+build. Use this hook for final reporting and cleanup.
+
+## Use the context safely
+
+Every hook receives immutable snapshots. This includes nested plain objects,
+arrays, maps, sets, dates, regular expressions, provider instances, and page
+catalogs. The following pattern is invalid:
+
+```ts
+buildStart(context) {
+  context.config.title = "Changed";
+  context.pages.push(/* ... */);
+}
+```
+
+Treat hook inputs as read-only. If a transformation is needed, return a new
+value:
+
+```ts
+pageTransformed(page) {
+  return {
+    ...page,
+    description: page.description ?? "No description provided.",
+  };
+}
+```
+
+Do not retain a context or page snapshot for later mutation. Store only the
+small, serializable data your plugin owns.
+
+## Logging and errors
+
+Use the context logger instead of assuming a console or file sink:
+
+```ts
+buildStart(context) {
+  context.logger.info(`Scanning ${context.contentDir}`);
+  context.logger.debug(`Running in ${context.mode} mode`);
+}
+```
+
+Use `debug` for diagnostics, `info` for progress, `warn` for recoverable
+concerns, and `error` for failure-related messages. Throw an `Error` when the
+hook cannot safely continue. Folio wraps it with plugin metadata and retains
+the original error as `cause`.
+
+Do not swallow errors and claim that a build succeeded. Do not hardcode
+consumer paths, URLs, page names, or branding in a reusable plugin; take those
+values from options or the Folio context.
+
+## Development versus production
+
+The development server creates a development session and re-runs page hooks
+when content changes. A reload creates a fresh lifecycle session and replaces
+the previous catalog, so plugins must not depend on a previous reload's page
+objects remaining available.
+
+Production builds run the complete artifact lifecycle, including `generate`
+and `buildEnd`. Development contexts have `mode: "development"` and no
+production `outputDir`; production contexts have `mode: "production"` and an
+output directory during artifact hooks.
+
+If a development hook fails, Folio keeps the server running, reports an
+actionable error to the log and Vite overlay, and keeps the last successful
+catalog. A production hook failure fails the current build.
+
+## Test a plugin properly
+
+At minimum, test the plugin in a real consumer project:
+
+1. Start with a plugin-less build and confirm it succeeds.
+2. Register the plugin from `docs.config.ts`.
+3. Build a page whose metadata exercises the plugin.
+4. Inspect generated HTML and, when relevant, sidebar and pagination output.
+5. Run the development server and edit the source page.
+6. Confirm the transformed result appears after HMR.
+7. Test an intentional failure and verify the plugin name and hook are
+   actionable in the error.
+8. Test multiple registrations and confirm registration order is intentional.
+
+For a repository-level plugin change, use the Folio validation commands:
+
+```bash
+bun run typecheck
+bun test tests
+bun run build
+bun run docs:build
+bun run test:browser
+bun run test:browser-hmr
+bun run test:generated
+```
+
+Do not mark a plugin feature complete from a typecheck alone. A passing build
+does not prove that the transformed metadata is visible in the browser.
+
+## Publish a reusable plugin
+
+For a plugin used by multiple consumer projects, create a separate package
+with the naming convention:
+
+```text
+@nikala-ui/folio-plugin-<capability>
+```
+
+Keep the plugin package independent from consumer content and branding. Folio
+should be a peer dependency, and the package README should document the
+supported Folio range, hooks used, configuration options, generated files,
+and validation commands.
+
+Before Folio 1.0, use a compatible minor range such as `~0.14.0`. After 1.0,
+caret ranges may be used for non-breaking releases. A breaking hook contract,
+removed field, or changed route identity rule requires a migration note and a
+new incompatible release policy.
+
+## Troubleshooting checklist
+
+### The plugin is not called
+
+- Confirm the plugin is imported by the consumer's `docs.config.ts`.
+- Confirm it is included in `plugins: [plugin]`.
+- Confirm the plugin has a non-empty unique `name`.
+- Rebuild the consumer instead of inspecting only the source TypeScript.
+
+### The title changes but navigation does not
+
+Return a new page object and update the relevant `frontmatter` metadata. Keep
+in mind that route identity is immutable and that navigation is built after
+`pageTransformed` completes.
+
+### Development shows an old result
+
+Check the Vite log and error overlay first. A failed reload intentionally keeps
+the last successful catalog. Fix the plugin error, then edit the page again to
+trigger a fresh reload.
+
+### A plugin works in production but not in development
+
+Check whether the implementation depends on `generate`, `buildEnd`, or
+`outputDir`. Those are production artifact hooks and are not run for ordinary
+development reloads.
