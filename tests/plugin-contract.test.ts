@@ -5,7 +5,7 @@ import {
   defineFolioPlugin,
   validateFolioPlugins,
 } from "../src/plugin.js";
-import { nikalaDocsPlugin } from "../src/server/plugin.js";
+import { nikalaDocsPlugin } from "../src/server/plugin/index.js";
 import type { FolioPlugin } from "../src/plugin.js";
 
 describe("public Folio plugin contract", () => {

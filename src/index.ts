@@ -36,5 +36,5 @@ export * from "./themes/index.js";
 export * from "./server/index.js";
 export * from "./search/provider.js";
 
-import { nikalaDocsPlugin } from "./server/plugin.js";
+import { nikalaDocsPlugin } from "./server/plugin/index.js";
 export const nikalaDocs = nikalaDocsPlugin;

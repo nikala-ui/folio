@@ -1,14 +1,14 @@
-import { scanContent } from "../core/content-scanner.js";
+import { scanContent } from "../../core/content-scanner.js";
 import {
   createFolioPluginLifecycleManager,
   type FolioPluginLifecycleManager,
-} from "../core/plugin-lifecycle.js";
+} from "../../core/plugin-lifecycle.js";
 import type {
   FolioBuildResult,
   FolioPage,
   FolioPluginLogger,
-} from "../plugin.js";
-import type { DocsConfig } from "../types.js";
+} from "../../plugin.js";
+import type { DocsConfig } from "../../types.js";
 
 export interface FolioBuildSessionOptions {
   plugins: DocsConfig["plugins"];

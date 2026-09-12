@@ -8,12 +8,12 @@ import solidPlugin from "vite-plugin-solid";
 import tailwindcss from "@tailwindcss/vite";
 import fs from "fs-extra";
 import matter from "gray-matter";
-import { nikalaDocsPlugin } from "./plugin.js";
+import { nikalaDocsPlugin } from "./plugin/index.js";
 import type { DocsConfig, PageData } from "../types.js";
 import { loadConfig } from "../config.js";
 import { scanContent } from "../core/content-scanner.js";
 import { getPageLastModified, isPageIndexable, renderSeoMetadata } from "./seo.js";
-import { createFolioBuildSession, type FolioBuildSession } from "./plugin-lifecycle.js";
+import { createFolioBuildSession, type FolioBuildSession } from "./plugin/lifecycle.js";
 
 export interface DocsServerOptions {
   root?: string;
@@ -667,4 +667,4 @@ async function listenWithFallback(server: ReturnType<typeof createHttpServer>, s
   throw new Error(`No available port found from ${startPort}`);
 }
 
-export * from "./plugin.js";
+export * from "./plugin/index.js";

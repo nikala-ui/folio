@@ -15,8 +15,8 @@
       "import": "./dist/index.js"
     },
     "./plugin": {
-      "types": "./dist/server/plugin.d.ts",
-      "import": "./dist/server/plugin.js"
+      "types": "./dist/server/plugin/index.d.ts",
+      "import": "./dist/server/plugin/index.js"
     },
     "./config": {
       "types": "./dist/config.d.ts",
