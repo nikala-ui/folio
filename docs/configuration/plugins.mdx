@@ -4,9 +4,9 @@ description: Extend Folio with typed build-time plugins.
 order: 7
 ---
 
-Folio plugins expose a typed lifecycle API for build tooling. This milestone
-provides the standalone lifecycle manager; wiring those hooks into Folio's
-build command is a separate milestone.
+Folio plugins expose a typed lifecycle API integrated with Folio's production
+build command. Development/watch lifecycle behavior remains a separate
+milestone.
 
 ## Register a plugin
 
@@ -47,9 +47,10 @@ error.
 - `buildEnd(result, context)`
 
 The context and result types are exported from `@nikala-ui/folio`. The
-Folio's production build invokes these hooks through the lifecycle manager. The
-development/watch lifecycle remains a separate milestone. The current
-contract is intentionally frozen while the build integration is verified.
+production build invokes these hooks through the lifecycle manager. The
+`generate` context exposes the absolute production `outputDir` and the final
+immutable `pages` catalog; `outputDir` is omitted for sessions that do not
+produce production artifacts, such as development sessions.
 
 ## Lifecycle order
 
@@ -82,7 +83,7 @@ The hook responsibilities and contracts are:
 | `buildStart` | build context | Prepare plugin state before content discovery. |
 | `pageCollected` | page and context | Observe one scanned `PageData` snapshot. |
 | `pageTransformed` | page and context | Return transformed `PageData` while preserving `slug` and `url`. |
-| `generate` | build context | Run after the integrating tool has generated artifacts. |
+| `generate` | build context | Run after artifact generation; production contexts include `outputDir` and the final page catalog. |
 | `buildEnd` | build result and context | Observe the final immutable result, including failed results. |
 
 If a hook fails, later plugins and later hooks in the current operation are not

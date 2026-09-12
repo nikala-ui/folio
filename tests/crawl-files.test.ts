@@ -154,6 +154,7 @@ describe("generated crawl files", () => {
       expect((failure as Error).message).toContain('route "/"');
       expect((failure as Error).message).toContain('source "index.mdx"');
       expect((failure as Error).message).toContain('mode "production"');
+      expect((failure as { cause?: unknown }).cause).toBe(cause);
       expect(calls).toEqual(["buildEnd:false"]);
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -191,6 +192,12 @@ describe("generated crawl files", () => {
               ? { ...page, title: "Config Transformed Guide", frontmatter: { ...page.frontmatter, order: -1 } }
               : page;
           },
+          async generate(context) {
+            await writeFile(
+              path.join(context.outputDir, "plugin-generate-result.json"),
+              JSON.stringify({ outputDir: context.outputDir, urls: context.pages.map((page) => page.url) }),
+            );
+          },
           async buildEnd(result) {
             await writeFile(
               path.join(result.outputDir, "plugin-build-result.json"),
@@ -212,6 +219,7 @@ describe("generated crawl files", () => {
         config,
         rootDir: root,
         contentDir: path.join(root, "docs"),
+        outputDir: firstOutput,
         mode: "production",
       });
       await buildDocs({ root, outDir: "first", lifecycleSession: firstSession });
@@ -221,6 +229,7 @@ describe("generated crawl files", () => {
         config,
         rootDir: root,
         contentDir: path.join(root, "docs"),
+        outputDir: secondOutput,
         mode: "production",
       });
       await buildDocs({ root, outDir: "second", lifecycleSession: secondSession });
@@ -229,6 +238,7 @@ describe("generated crawl files", () => {
       const firstBuildResult = JSON.parse(await readFile(path.join(firstOutput, "plugin-build-result.json"), "utf8")) as { success: boolean; outputDir: string; urls: string[] };
       const secondBuildResult = JSON.parse(await readFile(path.join(secondOutput, "plugin-build-result.json"), "utf8")) as { success: boolean; outputDir: string; urls: string[] };
       const firstImmutabilityResult = JSON.parse(await readFile(path.join(firstOutput, "plugin-immutability-result.json"), "utf8")) as { config: boolean; pages: boolean };
+      const firstGenerateResult = JSON.parse(await readFile(path.join(firstOutput, "plugin-generate-result.json"), "utf8")) as { outputDir: string; urls: string[] };
       const firstAssets = await readdir(path.join(firstOutput, "assets"));
       const firstBundle = (await Promise.all(firstAssets.map((asset) => readFile(path.join(firstOutput, "assets", asset), "utf8")))).join("\n");
       const firstPages = [...await firstSession.pages()];
@@ -238,6 +248,7 @@ describe("generated crawl files", () => {
       expect(firstBuildResult).toEqual({ success: true, outputDir: firstOutput, urls: ["/", "/api", "/guide"] });
       expect(secondBuildResult).toEqual({ success: true, outputDir: secondOutput, urls: ["/", "/guide"] });
       expect(firstImmutabilityResult).toEqual({ config: true, pages: true });
+      expect(firstGenerateResult).toEqual({ outputDir: firstOutput, urls: ["/", "/api", "/guide"] });
       expect(firstBundle.includes("Config Transformed Guide")).toBe(true);
       expect(firstBundle.includes("order:-1")).toBe(true);
       const generatedGuideTitle = firstBundle.lastIndexOf("Config Transformed Guide");

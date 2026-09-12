@@ -514,6 +514,7 @@ export async function buildDocs(options: DocsServerOptions = {}): Promise<void> 
     config,
     rootDir: root,
     contentDir,
+    outputDir: outDir,
     mode: "production",
   });
   const buildOptions = { ...options, config, lifecycleSession };
@@ -547,7 +548,7 @@ export async function buildDocs(options: DocsServerOptions = {}): Promise<void> 
     } catch (lifecycleError) {
       throw lifecycleError;
     }
-    throw error;
+    throw lifecycleSession.getFailure() ?? error;
   }
 }
 

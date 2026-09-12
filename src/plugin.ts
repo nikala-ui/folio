@@ -16,6 +16,8 @@ export interface FolioPluginContext {
   readonly rootDir: string;
   /** Resolved content directory used by the integrating build tool. */
   readonly contentDir: string;
+  /** Production output directory, when the integrating build has one. */
+  readonly outputDir?: string;
   /** Pages collected or transformed before the current hook invocation. */
   readonly pages: readonly FolioPage[];
   /** Build session mode selected by the integrating build tool. */

@@ -15,6 +15,7 @@ export interface FolioBuildSessionOptions {
   config: DocsConfig;
   rootDir: string;
   contentDir: string;
+  outputDir?: string;
   mode: "development" | "production";
   logger?: FolioPluginLogger;
 }
@@ -32,6 +33,7 @@ export class FolioBuildSession {
   private readonly contentDir: string;
   private startPromise?: Promise<void>;
   private pagesPromise?: Promise<readonly FolioPage[]>;
+  private failure?: unknown;
 
   constructor(options: FolioBuildSessionOptions) {
     this.contentDir = options.contentDir;
@@ -40,6 +42,7 @@ export class FolioBuildSession {
       config: options.config,
       rootDir: options.rootDir,
       contentDir: options.contentDir,
+      outputDir: options.outputDir,
       mode: options.mode,
       logger: options.logger || consoleLogger,
     });
@@ -65,13 +68,20 @@ export class FolioBuildSession {
           await this.lifecycle.pageTransformed(page);
         }
         return this.lifecycle.getPages();
-      })();
+      })().catch((error) => {
+        this.failure = error;
+        throw error;
+      });
     }
     return this.pagesPromise;
   }
 
   getPages(): readonly FolioPage[] {
     return this.lifecycle.getPages();
+  }
+
+  getFailure(): unknown {
+    return this.failure;
   }
 
   async generate(): Promise<void> {

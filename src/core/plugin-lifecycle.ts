@@ -24,6 +24,7 @@ export interface FolioPluginLifecycleOptions {
   config: DocsConfig;
   rootDir: string;
   contentDir: string;
+  outputDir?: string;
   mode: FolioPluginContext["mode"];
   logger: FolioPluginLogger;
   pages?: readonly FolioPage[];
@@ -103,6 +104,7 @@ export class FolioPluginLifecycleManager {
       config: this.options.config,
       rootDir: this.options.rootDir,
       contentDir: this.options.contentDir,
+      outputDir: this.options.outputDir,
       pages: this.pages,
       mode: this.options.mode,
       logger: this.options.logger,
