@@ -73,6 +73,17 @@ artifacts and a name-inventory diff, but a retained-path review in Chrome
 DevTools is still required before claiming a mathematical proof that no host
 or dependency retains memory.
 
+The retained-path review was then performed against the latest snapshot pair
+with a heap-graph traversal from `(GC roots)`, excluding weak edges. The
+after-snapshot contained one reachable `FolioBuildSession`, which was the
+current session. The current catalog was retained through that session's
+`lifecycle -> pages` path. The additional lifecycle-manager object found in
+the after-snapshot was unreachable from GC roots through strong edges, so it
+was eligible for collection rather than being retained by the reload loop.
+No second reachable session or reload-proportional session chain was found.
+This is evidence for the tested 100-reload scenario, not a universal guarantee
+about arbitrary host integrations.
+
 The browser HMR probe (`bun run test:browser-hmr`) performs 25 consecutive
 MDX/plugin reloads and forces browser garbage collection before each sample.
 The final run stayed at 2 documents, 270 DOM nodes, and 38 event listeners
