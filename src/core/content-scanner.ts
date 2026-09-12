@@ -3,6 +3,9 @@ import path from "node:path";
 import fs from "fs-extra";
 import matter from "gray-matter";
 import type { Frontmatter, PageData, TocItem } from "../types.js";
+import { formatTitleFromFilename } from "../utils/format-title.js";
+
+export { formatTitleFromFilename };
 
 function isWhitespace(character: string): boolean {
   if (!character) return false;
@@ -157,15 +160,6 @@ export function filePathToUrl(relativeFilePath: string): string {
   }
 
   return cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`;
-}
-
-export function formatTitleFromFilename(filename: string): string {
-  const base = path.basename(filename, path.extname(filename));
-  if (base === "index") return "Overview";
-  return base
-    .split(/[-_]/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 }
 
 export async function parseMdxFile(filePath: string, contentDir: string): Promise<PageData> {

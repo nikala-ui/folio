@@ -1,9 +1,9 @@
 // packages/docs/src/core/route-tree.ts
 import type { PageData, SidebarItem } from "../types.js";
-import { formatTitleFromFilename } from "./content-scanner.js";
+import { formatTitleFromFilename } from "../utils/format-title.js";
 import { flattenSidebarItems } from "../navigation/sidebar-tree.js";
 
-export { flattenSidebarItems } from "../navigation/sidebar-tree.js";
+export { flattenSidebarItems };
 
 export function formatGroupName(segment: string): string {
   return segment
