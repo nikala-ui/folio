@@ -169,11 +169,24 @@ describe("generated crawl files", () => {
       import path from "node:path";
       import { writeFile } from "node:fs/promises";
 
+      const immutableContext = { config: false, pages: false };
       export default {
         title: "Config Plugin Docs",
         plugins: [{
           name: "config-loaded-plugin",
-          pageTransformed(page) {
+          configResolved(context) {
+            try {
+              (context.config as { title?: string }).title = "mutated";
+            } catch {
+              immutableContext.config = true;
+            }
+          },
+          pageTransformed(page, context) {
+            try {
+              (context.pages as Array<unknown>).push(page);
+            } catch {
+              immutableContext.pages = true;
+            }
             return page.url === "/guide"
               ? { ...page, title: "Config Transformed Guide", frontmatter: { ...page.frontmatter, order: -1 } }
               : page;
@@ -183,6 +196,7 @@ describe("generated crawl files", () => {
               path.join(result.outputDir, "plugin-build-result.json"),
               JSON.stringify({ success: result.success, outputDir: result.outputDir, urls: result.pages.map((page) => page.url) }),
             );
+            await writeFile(path.join(result.outputDir, "plugin-immutability-result.json"), JSON.stringify(immutableContext));
           }
         }]
       };
@@ -214,6 +228,7 @@ describe("generated crawl files", () => {
       const secondGuide = await readFile(path.join(secondOutput, "guide", "index.html"), "utf8");
       const firstBuildResult = JSON.parse(await readFile(path.join(firstOutput, "plugin-build-result.json"), "utf8")) as { success: boolean; outputDir: string; urls: string[] };
       const secondBuildResult = JSON.parse(await readFile(path.join(secondOutput, "plugin-build-result.json"), "utf8")) as { success: boolean; outputDir: string; urls: string[] };
+      const firstImmutabilityResult = JSON.parse(await readFile(path.join(firstOutput, "plugin-immutability-result.json"), "utf8")) as { config: boolean; pages: boolean };
       const firstAssets = await readdir(path.join(firstOutput, "assets"));
       const firstBundle = (await Promise.all(firstAssets.map((asset) => readFile(path.join(firstOutput, "assets", asset), "utf8")))).join("\n");
       const firstPages = [...await firstSession.pages()];
@@ -222,8 +237,13 @@ describe("generated crawl files", () => {
       expect(secondGuide).toContain("Config Transformed Guide");
       expect(firstBuildResult).toEqual({ success: true, outputDir: firstOutput, urls: ["/", "/api", "/guide"] });
       expect(secondBuildResult).toEqual({ success: true, outputDir: secondOutput, urls: ["/", "/guide"] });
+      expect(firstImmutabilityResult).toEqual({ config: true, pages: true });
       expect(firstBundle.includes("Config Transformed Guide")).toBe(true);
       expect(firstBundle.includes("order:-1")).toBe(true);
+      const generatedGuideTitle = firstBundle.lastIndexOf("Config Transformed Guide");
+      const generatedApiTitle = firstBundle.lastIndexOf("API");
+      expect(generatedGuideTitle).toBeGreaterThanOrEqual(0);
+      expect(generatedApiTitle).toBeGreaterThan(generatedGuideTitle);
       await assert.rejects(access(path.join(secondOutput, "api", "index.html")));
       const guide = firstPages.find((page) => page.url === "/guide");
       const sidebarTree = buildSidebarTree(firstPages);
