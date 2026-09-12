@@ -219,6 +219,26 @@ describe("plugin lifecycle manager", () => {
     }
   });
 
+  test("adds page metadata to pageCollected failures", async () => {
+    const cause = new Error("invalid collected page");
+    const lifecycle = manager([{
+      name: "page-collector",
+      pageCollected: () => { throw cause; },
+    }]);
+
+    await expect(lifecycle.pageCollected({
+      ...page,
+      sourcePath: "/content/guide/start.mdx",
+    })).rejects.toMatchObject({
+      name: "FolioPluginHookError",
+      pluginName: "page-collector",
+      hook: "pageCollected",
+      cause,
+      pageRoute: "/guide/start",
+      sourcePath: "/content/guide/start.mdx",
+    });
+  });
+
   test("keeps Date and RegExp snapshot values immutable", async () => {
     const sourceDate = new Date("2025-01-02T03:04:05.000Z");
     const sourcePattern = /docs/gy;
