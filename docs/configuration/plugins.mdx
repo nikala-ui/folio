@@ -5,8 +5,7 @@ order: 7
 ---
 
 Folio plugins expose a typed lifecycle API integrated with Folio's production
-build command. Development/watch lifecycle behavior remains a separate
-milestone.
+build command and development server.
 
 ## Register a plugin
 
@@ -93,6 +92,24 @@ original cause. `buildEnd` receives `success: false` when the integrating tool
 reports a failed build; it does not convert a failed build into a successful
 one.
 
+## Development and watch behavior
+
+The development server creates a development-mode session during server
+startup. It runs `configResolved`, then `buildStart`, and runs the page hooks
+when the virtual route modules first load. A content add, edit, or removal
+creates a fresh lifecycle manager and rescans the content directory, so the
+new catalog replaces the previous one rather than accumulating pages or plugin
+state. Every development context has `mode: "development"` and does not have
+an `outputDir`.
+
+Development reloads intentionally do not run `generate` or `buildEnd`: those
+hooks describe production artifact generation and final build completion. A
+configuration reload creates a new session from the newly loaded config and
+runs its `configResolved` and `buildStart` hooks. If a development hook fails,
+Folio keeps the server alive, logs the actionable `FolioPluginHookError`, and
+sends the error to the Vite client overlay; the failed reload does not replace
+the last successful catalog.
+
 `pageTransformed` may update a page's metadata, including its title,
 description, order, badge, icon, table of contents, and frontmatter-derived
 values. It must preserve the page route identity (`slug` and `url`). The first
@@ -108,5 +125,4 @@ maps, sets, dates, regular expressions, and supported provider instances. The
 original config and page objects remain unchanged.
 
 Plugin packages should keep feature-specific behavior (such as i18n, API
-documentation, or workspace discovery) outside the core package. Development
-and watch-mode lifecycle integration remains a separate milestone.
+documentation, or workspace discovery) outside the core package.

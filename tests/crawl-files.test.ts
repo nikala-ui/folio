@@ -124,6 +124,123 @@ describe("generated crawl files", () => {
     }
   }, 30_000);
 
+  test("rebuilds the development session and replaces pages on reload", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-dev-reload-"));
+    const calls: string[] = [];
+    const plugin: FolioPlugin = {
+      name: "dev-reload-observer",
+      configResolved: (context) => { calls.push(`config:${context.mode}`); },
+      buildStart: (context) => { calls.push(`start:${context.mode}`); },
+      pageTransformed: (page, context) => {
+        calls.push(`page:${page.title}:${context.mode}`);
+        return page;
+      },
+    };
+    await mkdir(path.join(root, "docs"));
+    await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: First\n---\n\n# First\n");
+
+    try {
+      const session = createFolioBuildSession({
+        plugins: [plugin],
+        config: { title: "Dev Docs", plugins: [plugin] },
+        rootDir: root,
+        contentDir: path.join(root, "docs"),
+        mode: "development",
+      });
+      expect((await session.pages()).map((page) => page.title)).toEqual(["First"]);
+      await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Second\n---\n\n# Second\n");
+      expect((await session.reload()).map((page) => page.title)).toEqual(["Second"]);
+      expect(calls).toEqual([
+        "config:development", "start:development", "page:First:development",
+        "config:development", "start:development", "page:Second:development",
+      ]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  test("keeps the last successful development catalog after a failed reload", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-dev-reload-failure-"));
+    const cause = new Error("invalid development metadata");
+    const plugin: FolioPlugin = {
+      name: "dev-reload-failure",
+      pageTransformed: (page) => {
+        if (page.title === "Broken") throw cause;
+        return page;
+      },
+    };
+    await mkdir(path.join(root, "docs"));
+    await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Stable\n---\n\n# Stable\n");
+
+    try {
+      const session = createFolioBuildSession({
+        plugins: [plugin],
+        config: { title: "Dev Docs", plugins: [plugin] },
+        rootDir: root,
+        contentDir: path.join(root, "docs"),
+        mode: "development",
+      });
+      expect((await session.pages()).map((page) => page.title)).toEqual(["Stable"]);
+      await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Broken\n---\n\n# Broken\n");
+      await expect(session.reload()).rejects.toMatchObject({
+        name: "FolioPluginHookError",
+        pluginName: "dev-reload-failure",
+        hook: "pageTransformed",
+        cause,
+      });
+      expect((await session.pages()).map((page) => page.title)).toEqual(["Stable"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  test("does not let a stale concurrent reload replace the newest catalog", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-dev-concurrent-reload-"));
+    let releaseFirst!: () => void;
+    let firstReloadStarted!: () => void;
+    let delayNext = false;
+    const firstReloadReady = new Promise<void>((resolve) => { firstReloadStarted = resolve; });
+    const firstReloadGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const plugin: FolioPlugin = {
+      name: "concurrent-reload-plugin",
+      pageTransformed: async (page) => {
+        if (delayNext) {
+          delayNext = false;
+          firstReloadStarted();
+          await firstReloadGate;
+        }
+        return page;
+      },
+    };
+    await mkdir(path.join(root, "docs"));
+    const pagePath = path.join(root, "docs", "index.mdx");
+    await writeFile(pagePath, "---\ntitle: Initial\n---\n\n# Initial\n");
+
+    try {
+      const session = createFolioBuildSession({
+        plugins: [plugin],
+        config: { title: "Dev Docs", plugins: [plugin] },
+        rootDir: root,
+        contentDir: path.join(root, "docs"),
+        mode: "development",
+      });
+      await session.pages();
+      delayNext = true;
+      await writeFile(pagePath, "---\ntitle: Older\n---\n\n# Older\n");
+      const staleReload = session.reload();
+      await firstReloadReady;
+      await writeFile(pagePath, "---\ntitle: Newest\n---\n\n# Newest\n");
+      const newestReload = session.reload();
+      releaseFirst();
+      expect((await newestReload).map((page) => page.title)).toEqual(["Newest"]);
+      expect((await staleReload).map((page) => page.title)).toEqual(["Newest"]);
+      expect((await session.pages()).map((page) => page.title)).toEqual(["Newest"]);
+    } finally {
+      releaseFirst?.();
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   test("stops a production build on plugin failure and reports a failed result", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "folio-plugin-failure-"));
     const calls: string[] = [];

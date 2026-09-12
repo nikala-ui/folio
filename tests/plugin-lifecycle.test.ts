@@ -435,4 +435,59 @@ describe("plugin lifecycle manager", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  test("rescans content and sends a full reload after a development page change", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-content-reload-"));
+      const config = {
+        title: "Reload Docs",
+        plugins: [{
+          name: "content-reload-plugin",
+        pageTransformed: (current: FolioPage) => {
+          if (current.title === "Broken") throw new Error("invalid development page");
+          return { ...current, title: `${current.title} (plugin)` };
+        },
+      }],
+    };
+    try {
+      await mkdir(path.join(root, "docs"));
+      const pagePath = path.join(root, "docs", "index.mdx");
+      await writeFile(pagePath, "---\ntitle: First\n---\n\n# First\n");
+      const plugin = nikalaDocsPlugin({ configRoot: root, docsDir: "docs", config });
+      const configResolved = plugin.configResolved as (resolved: unknown) => Promise<void>;
+      await configResolved({ command: "serve", build: { ssr: false } });
+      const load = plugin.load as (id: string) => Promise<string | null>;
+      expect(await load(RESOLVED_TREE_ID)).toContain("First (plugin)");
+
+      let contentChange: ((file: string) => Promise<void>) | undefined;
+      const messages: Array<{ type: string; err?: { message?: string } }> = [];
+      const configureServer = plugin.configureServer as (server: unknown) => void;
+      configureServer({
+        watcher: {
+          add() {},
+          on(event: string, handler: (file: string) => Promise<void>) {
+            if (event === "change") contentChange = handler;
+          },
+        },
+        moduleGraph: { getModuleById() { return undefined; } },
+        ws: { send(message: { type: string }) { messages.push(message); } },
+        config: { logger: { error() {} } },
+      });
+
+      await writeFile(pagePath, "---\ntitle: Second\n---\n\n# Second\n");
+      await contentChange?.(pagePath);
+      const tree = await load(RESOLVED_TREE_ID);
+      expect(tree).toContain("Second (plugin)");
+      expect(tree).not.toContain("First (plugin)");
+      await new Promise((resolve) => setTimeout(resolve, 90));
+      expect(messages).toContainEqual({ type: "full-reload" });
+
+      await writeFile(pagePath, "---\ntitle: Broken\n---\n\n# Broken\n");
+      await contentChange?.(pagePath);
+      const errorMessage = messages.find((message) => message.type === "error")?.err?.message;
+      expect(errorMessage).toContain('Plugin "content-reload-plugin" hook "pageTransformed"');
+      expect(await load(RESOLVED_TREE_ID)).toContain("Second (plugin)");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

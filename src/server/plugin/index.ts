@@ -103,6 +103,11 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
       const configuredCss = resolvedConfig.css ? path.resolve(rootDir, resolvedConfig.css) : undefined;
       if (configuredCss && fs.existsSync(configuredCss)) server.watcher.add(configuredCss);
       let reloadTimer: ReturnType<typeof setTimeout> | undefined;
+      const reportLifecycleError = (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        server.config.logger.error(message);
+        server.ws.send({ type: "error", err: { message, stack: error instanceof Error ? error.stack || message : message } });
+      };
       const invalidate = (includeConfig = false, includeComponents = false) => {
         for (const id of [RESOLVED_TREE_ID, RESOLVED_ROUTES_ID, ...(includeComponents ? ["\0" + VIRTUAL_COMPONENTS_ID] : []), ...(includeConfig ? [RESOLVED_CONFIG_ID, RESOLVED_THEME_ID] : [])]) {
           const module = server.moduleGraph.getModuleById(id); if (module) server.moduleGraph.invalidateModule(module);
@@ -110,18 +115,31 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
         if (reloadTimer) clearTimeout(reloadTimer);
         reloadTimer = setTimeout(() => { reloadTimer = undefined; server.ws.send({ type: "full-reload" }); }, 75);
       };
-      server.watcher.on("add", (file) => /.(md|mdx)$/.test(file) ? invalidate() : componentsDir && path.resolve(file).startsWith(`${path.resolve(componentsDir)}${path.sep}`) ? invalidate(false, true) : undefined);
-      server.watcher.on("unlink", (file) => /.(md|mdx)$/.test(file) ? invalidate() : componentsDir && path.resolve(file).startsWith(`${path.resolve(componentsDir)}${path.sep}`) ? invalidate(false, true) : undefined);
+      const reloadContent = async () => {
+        try {
+          await lifecycleSession?.reload();
+          invalidate();
+        } catch (error) {
+          reportLifecycleError(error);
+        }
+      };
+      server.watcher.on("add", (file) => /\.(md|mdx)$/.test(file) ? void reloadContent() : componentsDir && path.resolve(file).startsWith(`${path.resolve(componentsDir)}${path.sep}`) ? invalidate(false, true) : undefined);
+      server.watcher.on("unlink", (file) => /\.(md|mdx)$/.test(file) ? void reloadContent() : componentsDir && path.resolve(file).startsWith(`${path.resolve(componentsDir)}${path.sep}`) ? invalidate(false, true) : undefined);
       server.watcher.on("change", async (file) => {
-        if (/\.(md|mdx)$/.test(file)) return invalidate();
+        if (/\.(md|mdx)$/.test(file)) return reloadContent();
         if (componentsDir && path.resolve(file).startsWith(`${path.resolve(componentsDir)}${path.sep}`)) return invalidate(false, true);
         if (CONFIG_FILENAMES.has(path.basename(file))) {
-          if (!options.config) {
-            resolvedConfig = await loadConfig(rootDir);
-            if (resolvedConfig.contentDir) docsDir = path.resolve(rootDir, resolvedConfig.contentDir);
-            lifecycleSession = createLifecycleSession();
+          try {
+            if (!options.config) {
+              resolvedConfig = await loadConfig(rootDir);
+              if (resolvedConfig.contentDir) docsDir = path.resolve(rootDir, resolvedConfig.contentDir);
+              lifecycleSession = createLifecycleSession();
+            }
+            await lifecycleSession?.start();
+            return invalidate(true);
+          } catch (error) {
+            return reportLifecycleError(error);
           }
-          return invalidate(true);
         }
         if (configuredCss && path.resolve(file) === configuredCss) { const cssModule = server.moduleGraph.getModuleById(configuredCss); if (cssModule) server.moduleGraph.invalidateModule(cssModule); invalidate(); }
       });
