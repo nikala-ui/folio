@@ -31,8 +31,6 @@ export * from "./core/content-scanner.js";
 export * from "./core/route-tree.js";
 export * from "./mdx/compiler.js";
 export * from "./mdx/highlighter.js";
-export * from "./components/mdx-components.js";
-export * from "./themes/index.js";
 export * from "./server/index.js";
 export * from "./search/provider.js";
 

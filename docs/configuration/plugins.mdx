@@ -34,6 +34,34 @@ name in a `DocsConfig.plugins` array. Hook fields, when present, must be
 functions. Invalid registrations fail configuration loading with an actionable
 error.
 
+## Minimal metadata plugin
+
+The smallest useful plugin can transform page metadata while preserving the
+page route:
+
+```ts
+import { defineFolioPlugin } from "@nikala-ui/folio";
+
+const metadataPlugin = defineFolioPlugin({
+  name: "metadata-example",
+  pageTransformed(page) {
+    return {
+      ...page,
+      description: page.description || `Documentation for ${page.title}`,
+    };
+  },
+});
+
+export default { plugins: [metadataPlugin] };
+```
+
+Keep plugin names stable and lowercase; use a short capability-oriented name,
+not a consumer site name. Published plugins should use the
+`@nikala-ui/folio-plugin-*` package naming convention. A plugin package should
+declare Folio as a peer dependency and document the exact compatible Folio
+range. Before Folio 1.0, use a compatible minor range such as `~0.14.0`; after
+1.0, caret ranges may be used for non-breaking releases.
+
 ## Public contract
 
 `FolioPlugin` currently exposes these optional hooks:
@@ -126,3 +154,25 @@ original config and page objects remain unchanged.
 
 Plugin packages should keep feature-specific behavior (such as i18n, API
 documentation, or workspace discovery) outside the core package.
+
+## Public API and compatibility
+
+The package root exports the plugin authoring surface: `FolioPlugin`,
+`FolioPluginContext`, `FolioBuildResult`, `FolioPluginFactory`,
+`FolioPluginLogger`, `FolioPluginConfig`, `FolioPluginHookError`,
+`createFolioPlugin`, `defineFolioPlugin`, and the validation helpers. The
+`FolioPluginLifecycleManager` and its options are exported for integrating
+build tools; normal plugin authors should use the factory helpers instead.
+
+All hooks are optional. Existing hook names, argument order, route identity
+rules, immutable snapshot guarantee, and error metadata are maintained within
+the compatible Folio range. New optional hooks and fields are additive. A
+breaking hook contract or removal requires a major release (or, before 1.0,
+the next incompatible minor release) and a migration note.
+
+`context.logger.debug`, `info`, `warn`, and `error` are host-owned logging
+methods. Use them for diagnostic, progress, warning, and failure-related
+messages respectively; do not assume a particular console or file sink.
+`FolioPluginHookError` exposes `pluginName`, `hook`, `mode`, optional page
+location metadata, and the original exception in `cause`. Use that metadata
+for actionable reporting without replacing the original error.

@@ -1,3 +1,6 @@
+import os from "node:os";
+import path from "node:path";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import { defineDocsConfig } from "../src/config.js";
 import {
@@ -6,6 +9,7 @@ import {
   validateFolioPlugins,
 } from "../src/plugin.js";
 import { nikalaDocsPlugin } from "../src/server/plugin/index.js";
+import { buildDocs } from "../src/server/index.js";
 import type { FolioPlugin } from "../src/plugin.js";
 
 describe("public Folio plugin contract", () => {
@@ -54,4 +58,28 @@ describe("public Folio plugin contract", () => {
 
     expect(plugin.name).toBe("lifecycle-contract");
   });
+
+  test("runs the documented minimal metadata plugin through a real build", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-metadata-example-"));
+    await mkdir(path.join(root, "docs"));
+    await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Home\n---\n\n# Home\n");
+    const output = path.join(root, "out");
+    const metadataPlugin = defineFolioPlugin({
+      name: "metadata-example",
+      pageTransformed(page) {
+        return {
+          ...page,
+          description: page.description || `Documentation for ${page.title}`,
+        };
+      },
+    });
+
+    try {
+      await buildDocs({ root, outDir: "out", config: { title: "Example Docs", plugins: [metadataPlugin] } });
+      const html = await readFile(path.join(output, "index.html"), "utf8");
+      expect(html).toContain('name="description" content="Documentation for Home"');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 30_000);
 });
