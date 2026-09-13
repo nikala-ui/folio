@@ -331,7 +331,7 @@ async function writeProjectFiles(root: string, registryDependencies: string[]): 
   };
   await fs.writeJson(packagePath, packageJson, { spaces: 2 });
   await fs.outputFile(path.join(root, "tsconfig.json"), JSON.stringify({
-    compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "preserve", jsxImportSource: "solid-js", strict: true, skipLibCheck: true, paths: { "@/*": ["./src/*"], "@/components/ui/*": ["./src/components/ui/*"], "@/hooks/*": ["./src/hooks/*"] } },
+    compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "preserve", jsxImportSource: "solid-js", strict: true, skipLibCheck: true, paths: { "@/*": ["./src/*"], "@/components/*": ["./src/components/*"], "@/components/ui/*": ["./src/components/ui/*"], "@/hooks/*": ["./src/hooks/*"], "@/plugins/*": ["./src/plugins/*"] } },
     include: ["src/**/*", "docs.config.ts"],
   }, null, 2) + "\n", "utf-8");
 }

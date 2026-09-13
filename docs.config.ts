@@ -1,8 +1,8 @@
 import { algoliaAdapter } from "@nikala-ui/folio-algolia";
 import type { DocsConfig } from "./src/types.js";
-import { createDocsQualityPlugin } from "./src/plugins/docs-quality/index.js";
-import { createClickMePlugin } from "./src/plugins/click-me/index.js";
-import { createI18nPlugin } from "./src/plugins/i18n/index.js";
+import { createDocsQualityPlugin } from "@/plugins/docs-quality/index.js";
+import { createClickMePlugin } from "@/plugins/click-me/index.js";
+import { createI18nPlugin } from "@/plugins/i18n/index.js";
 
 const config: DocsConfig = {
   title: "Folio",

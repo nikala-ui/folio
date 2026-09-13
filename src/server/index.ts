@@ -137,6 +137,7 @@ function getSharedConfig(options: DocsServerOptions, isDev = false, isSSR = fals
   const localHooks = path.join(localSrc, "hooks");
   const localLib = path.join(localSrc, "lib");
   const localProviders = path.join(localSrc, "providers");
+  const localPlugins = path.join(localSrc, "plugins");
   const componentsSrc = fs.existsSync(localComponents) ? localComponents : path.join(docsSrc, "components/ui");
   const hooksSource = fs.existsSync(localHooks) ? localHooks : path.join(docsSrc, "hooks");
   const libSource = fs.existsSync(localLib) ? localLib : path.join(docsSrc, "lib");
@@ -159,6 +160,8 @@ function getSharedConfig(options: DocsServerOptions, isDev = false, isSSR = fals
   aliases.push(
     { find: "@/lib", replacement: libSource },
     { find: "@/providers", replacement: providersSource },
+    ...(fs.existsSync(localPlugins) ? [{ find: /^@\/plugins\/(.*)$/, replacement: path.join(localPlugins, "$1") }] : []),
+    { find: /^@\/components\/(.*)$/, replacement: path.join(path.dirname(componentsSrc), "$1") },
     { find: /^@\/components\/ui\/(.*)$/, replacement: path.join(componentsSrc, "$1") },
     { find: /^@\/hooks\/(.*)$/, replacement: path.join(hooksSource, "$1") },
   );
