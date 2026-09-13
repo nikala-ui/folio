@@ -1,0 +1,208 @@
+---
+title: დაწყება
+description: დააინსტალირეთ Folio და შექმენით თქვენი პირველი დოკუმენტაციის საიტი.
+icon: rocket
+order: 2
+locale: ka
+---
+
+Folio Markdown და MDX ფაილების შემცველ დირექტორიას ფაილებზე დაფუძნებულ
+დოკუმენტაციის საიტად გარდაქმნის. მარშრუტები content დირექტორიიდან იქმნება,
+ხოლო ნაგულისხმევი თემა უზრუნველყოფს ნავიგაციას, ძიებას, სინტაქსის გამოკვეთას
+და სხვადასხვა ეკრანზე მორგებულ განლაგებას. ამ ფაილებში შეიძლება აღწერილი იყოს
+ნებისმიერი პროექტი, ბიბლიოთეკა, API ან პროდუქტი.
+
+## მოთხოვნები
+
+დაგჭირდებათ:
+
+- Bun, npm, pnpm ან yarn;
+- Markdown ან MDX ფაილების შემცველი დირექტორია ან ცარიელი დირექტორია ახალი
+  დოკუმენტაციის პროექტისთვის;
+- Tailwind CSS v4, თუ გენერირებულ ნაგულისხმევ თემას იყენებთ.
+
+ქვემოთ მოცემულ ბრძანებებში გამოიყენება თქვენი პროექტისთვის არჩეული პაკეტების
+მენეჯერი. ძრავა მხოლოდ Bun-ზე არ არის დამოკიდებული.
+
+## დოკუმენტაციის პროექტის შექმნა
+
+დააინსტალირეთ ძრავა არსებულ პროექტში:
+
+<PackageManagerTabs
+  managers={["bun", "pnpm", "npm", "yarn"]}
+  commands={{
+    bun: "bun add @nikala-ui/folio",
+    pnpm: "pnpm add @nikala-ui/folio",
+    npm: "npm install @nikala-ui/folio",
+    yarn: "yarn add @nikala-ui/folio"
+  }}
+/>
+
+შემდეგ შექმენით დოკუმენტაციის სტრუქტურა:
+
+<PackageManagerTabs
+  managers={["bunx", "pnpm", "npx", "yarn"]}
+  commands={{
+    bunx: "bunx @nikala-ui/folio init .",
+    pnpm: "pnpm dlx @nikala-ui/folio init .",
+    npx: "npx @nikala-ui/folio init .",
+    yarn: "yarn dlx @nikala-ui/folio init ."
+  }}
+/>
+
+ინიციალიზატორი ქმნის დოკუმენტაციის სტრუქტურას და აყენებს გენერირებული თემისთვის
+საჭირო დამოკიდებულებებს. ის `package.json`-ში არსებულ სკრიპტებსა და
+დამოკიდებულებებს აერთიანებს, ხოლო არსებულ `docs.config.ts` და
+`nikala.config.json` ფაილებს ინარჩუნებს.
+
+გენერირებული პროექტის სტრუქტურა ასეთია:
+
+```text
+.
+├── docs/
+│   └── index.mdx
+├── docs.config.ts
+├── nikala.config.json
+├── public/
+│   └── favicon.ico
+└── src/
+    ├── components/ui/
+    ├── hooks/
+    ├── index.css
+    ├── lib/
+    ├── providers/
+    └── themes/default/
+```
+
+ინიციალიზატორი ასევე აწყობს `@/*` TypeScript path alias-ს და ამატებს `dev`,
+`build` და `preview` სკრიპტებს, თუ ისინი ჯერ განსაზღვრული არ არის.
+
+<Callout type="tip">
+  გენერირებული თემის წყაროები თქვენი პროექტის ჩვეულებრივი ფაილებია. შეგიძლიათ
+  ისინი დაათვალიეროთ და თქვენი დოკუმენტაციის საიტის საჭიროებისამებრ მოარგოთ.
+</Callout>
+
+## დეველოპმენტის სერვერის გაშვება
+
+პროექტის ძირეული დირექტორიიდან გაუშვით გენერირებული development სკრიპტი:
+
+<PackageManagerTabs
+  managers={["bun", "pnpm", "npm", "yarn"]}
+  commands={{
+    bun: "bun run dev",
+    pnpm: "pnpm run dev",
+    npm: "npm run dev",
+    yarn: "yarn dev"
+  }}
+/>
+
+ნაგულისხმევი development სერვერი ხელმისაწვდომია მისამართზე
+`http://localhost:1862/`.
+
+სერვერი თვალს ადევნებს კონფიგურაციაში მითითებულ content დირექტორიას და
+development რეჟიმში ცვლილებებისას მარშრუტებსა და კონფიგურაციას თავიდან ტვირთავს.
+
+## პირველი გვერდის დამატება
+
+შექმენით MDX ფაილი `docs/` დირექტორიაში:
+
+```mdx
+---
+title: ინსტალაცია
+description: დააინსტალირეთ თქვენი პროექტისთვის საჭირო დამოკიდებულებები.
+order: 1
+---
+
+# ინსტალაცია
+
+დააინსტალირეთ პაკეტი თქვენთვის სასურველი პაკეტების მენეჯერით, შემდეგ კი
+გაუშვით development სერვერი.
+```
+
+ფაილის მისამართი მარშრუტად გადაიქცევა. მაგალითად:
+
+```text
+docs/index.mdx              -> /
+docs/installation.mdx       -> /installation
+docs/guides/theming.mdx     -> /guides/theming
+```
+
+დირექტორიები ავტომატურად იქცევა sidebar-ის კატეგორიებად. გვერდის მეტამონაცემებისა
+და ნავიგაციის სამართავად გამოიყენეთ frontmatter-ის ველები: `order`,
+`categoryOrder`, `icon`, `badge`, `toc`, `prev` და `next`.
+
+## საიტის კონფიგურაცია
+
+ინიციალიზატორი პროექტის ძირეულ დირექტორიაში ქმნის `docs.config.ts` ფაილს.
+მინიმალური კონფიგურაცია ასეთია:
+
+```ts
+import type { DocsConfig } from "@nikala-ui/folio";
+
+const config: DocsConfig = {
+  title: "My Project Docs",
+  description: "Documentation for my project.",
+  contentDir: "docs",
+  favicon: "/favicon.ico",
+  navigation: {
+    layout: "sidebar",
+    navbar: [{ title: "Home", href: "/" }],
+    sidebar: {
+      nav: "auto",
+      header: true,
+      footer: false,
+      headerSubtitle: "Documentation",
+    },
+  },
+  search: {
+    enabled: true,
+    provider: "local",
+  },
+};
+
+export default config;
+```
+
+კონფიგურაციის სრულ ცნობარს გაეცანით გვერდზე [Configuration](/configuration).
+
+## Nikala UI-ის გამოყენება დოკუმენტაციის საიტთან ერთად
+
+ნაგულისხმევი თემა Nikala UI-ის კომპონენტებს იყენებს. თუ დამატებითი UI
+კომპონენტები ან თემის შესაძლებლობები დაგჭირდებათ, გამოიყენეთ Nikala UI CLI
+გენერირებული პროექტიდან:
+
+```bash
+bunx @nikala-ui/cli add button
+```
+
+CLI არჩეულ წყაროს პროექტში ჩაწერს, რის შემდეგაც მისი გამოყენება და ადგილობრივად
+მორგება შეგეძლებათ.
+
+## production build-ის შექმნა და preview
+
+შექმენით საიტის production build და ნახეთ გენერირებული შედეგი preview რეჟიმში:
+
+<PackageManagerTabs
+  managers={["bun", "pnpm", "npm", "yarn"]}
+  commands={{
+    bun: "bun run build",
+    pnpm: "pnpm run build",
+    npm: "npm run build",
+    yarn: "yarn build"
+  }}
+/>
+
+<PackageManagerTabs
+  managers={["bun", "pnpm", "npm", "yarn"]}
+  commands={{
+    bun: "bun run preview",
+    pnpm: "pnpm run preview",
+    npm: "npm run preview",
+    yarn: "yarn preview"
+  }}
+/>
+
+Build დოკუმენტაციის საიტს `dist/` დირექტორიაში წერს. Preview ბრძანება ამ
+production output-ს ლოკალურად ამუშავებს. deploy-მდე გამოიყენეთ production build,
+რათა აღმოაჩინოთ SSR-ის, routing-ისა და asset path-ების პრობლემები, რომლებიც
+development რეჟიმში შეიძლება არ გამოჩნდეს.
