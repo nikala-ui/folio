@@ -1,5 +1,5 @@
 // packages/docs/src/themes/default/layout.tsx
-import { createSignal, For, Show, splitProps, type ParentComponent } from "solid-js";
+import { createSignal, Show, splitProps, type ParentComponent } from "solid-js";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { Container } from "@/components/ui/container";
@@ -12,22 +12,12 @@ import { DocsTableOfContents } from "./content/table-of-contents.jsx";
 import { DocsMobileTableOfContents } from "./navigation/mobile-table-of-contents.jsx";
 import { DocsSearchDialog } from "./overlays/search-dialog.jsx";
 import { cn } from "@/lib/cn";
-import { buttonVariants } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { createClipboard } from "@/hooks/create-clipboard";
-import { Copy, FileText, ChevronDown, ExternalLink, Sparkles } from "lucide-solid";
-import { pageToMarkdown, pageToText, resolvePageActionUrl, sourceToMarkdown } from "../../client/page-actions.js";
 import { getRepositorySourceUrl } from "../../navigation/repository-links.js";
 import { resolveSearchProvider } from "../../search/provider.js";
 import type { DocsLayoutProps } from "../types.js";
-import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
+import { PageActions } from "./components/page-actions.jsx";
+import { SidebarPromo } from "./components/sidebar-promo.jsx";
+import { createPageCopy } from "./hooks/use-page-copy.js";
 
 export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
   const [local, rest] = splitProps(props, [
@@ -46,8 +36,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
   ]);
 
   const [searchOpen, setSearchOpen] = createSignal(false);
-  const siteLocale = useSiteLocale();
-  const pageClipboard = createClipboard();
+  const pageCopy = createPageCopy(() => local.sourceContent);
   const searchEnabled = () => local.config.search?.enabled !== false;
   const searchProvider = () => resolveSearchProvider(local.config.search);
 
@@ -74,30 +63,10 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
     return getRepositorySourceUrl(repository, page.sourcePath, local.config.contentDir || "docs");
   };
 
-  const pageElement = () => typeof document !== "undefined"
-    ? document.querySelector("main article [data-docs-page-content]") as HTMLElement | null
-    : null;
-  const markdown = () => local.sourceContent
-    ? sourceToMarkdown(local.sourceContent)
-    : pageElement() ? pageToMarkdown(pageElement()!) : "";
-  const copyPage = async () => {
-    const page = pageElement();
-    if (page) await pageClipboard.copy(pageToText(page));
-  };
-  const copyMarkdown = async () => {
-    const content = markdown();
-    if (content) await pageClipboard.copy(content);
-  };
+  const markdown = pageCopy.markdown;
   const aiProviders = () => local.config.pageActions?.ai || [];
   const copyPageEnabled = () => local.config.pageActions?.copyPage !== false;
   const copyMarkdownEnabled = () => local.config.pageActions?.copyMarkdown !== false;
-  const hasPageActions = () => copyPageEnabled() || copyMarkdownEnabled() || aiProviders().length > 0;
-  const pageActionUrl = (provider: { url: string; prompt?: string }) => resolvePageActionUrl(provider.url, {
-    url: typeof window !== "undefined" ? window.location.href : "",
-    content: markdown(),
-    title: local.currentPage?.title,
-    prompt: provider.prompt,
-  });
   const pageActions = () => local.currentPage?.pageActions || [];
 
   const sidebar = (className?: string) => (
@@ -130,71 +99,18 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
               description={local.currentPage?.description}
               class="mb-8"
               actions={
-                <div class="flex items-center gap-2">
-                  <Show when={sourceUrl()}>
-                    {(url) => (
-                      <a
-                        href={url()}
-                        target="_blank"
-                        rel="noreferrer"
-                        class={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shrink-0")}
-                      >
-                        {siteLocale.t("actions.viewSource")}
-                      </a>
-                    )}
-                  </Show>
-                  <For each={pageActions()}>
-                    {(action) => (
-                      <a
-                        href={action.href}
-                        target={action.external ? "_blank" : undefined}
-                        rel={action.external ? "noreferrer" : undefined}
-                        class={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shrink-0")}
-                      >
-                        {action.label}
-                      </a>
-                    )}
-                  </For>
-                  <Show when={hasPageActions()}>
-                    <DropdownMenu placement="bottom-end">
-                      <DropdownMenuTrigger
-                        as={Button}
-                        variant="secondary"
-                        size="sm"
-                        class="shrink-0 gap-1"
-                        aria-label={siteLocale.t("actions.copyDocumentationPage")}
-                      >
-                        <Copy class="size-3.5" />
-                        <span class="hidden sm:inline">{siteLocale.t("actions.copyPage")}</span>
-                        <ChevronDown class="size-3.5" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <Show when={copyPageEnabled()}>
-                          <DropdownMenuItem onClick={copyPage}>
-                            <FileText class="mr-2 size-4" />
-                            {siteLocale.t("actions.copyPage")}
-                          </DropdownMenuItem>
-                        </Show>
-                        <Show when={copyMarkdownEnabled()}>
-                          <DropdownMenuItem onClick={copyMarkdown}>
-                            <Copy class="mr-2 size-4" />
-                            {siteLocale.t("actions.copyAsMarkdown")}
-                          </DropdownMenuItem>
-                        </Show>
-                        <Show when={aiProviders().length > 0}>
-                          <For each={aiProviders()}>
-                            {(provider) => (
-                              <DropdownMenuItem as="a" href={pageActionUrl(provider)} target="_blank" rel="noreferrer">
-                                <ExternalLink class="mr-2 size-4" />
-                                {siteLocale.t("actions.openInProvider", { provider: provider.name })}
-                              </DropdownMenuItem>
-                            )}
-                          </For>
-                        </Show>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Show>
-                </div>
+                <PageActions
+                  sourceUrl={sourceUrl()}
+                  pageActions={pageActions()}
+                  aiProviders={aiProviders()}
+                  copyPageEnabled={copyPageEnabled()}
+                  copyMarkdownEnabled={copyMarkdownEnabled()}
+                  pageUrl={local.currentPage?.url}
+                  pageTitle={local.currentPage?.title}
+                  markdown={markdown}
+                  onCopyPage={pageCopy.copyPage}
+                  onCopyMarkdown={pageCopy.copyMarkdown}
+                />
               }
             />
           </Show>
@@ -213,25 +129,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
             <div class="flex flex-col gap-5">
               <DocsTableOfContents items={local.toc!} class="max-h-none" />
               <Show when={sidebarPromo()}>
-                {(promo) => (
-                  <Card class="border-primary/30 bg-primary/5 shadow-none">
-                    <CardContent class="p-4">
-                      <CardTitle class="text-sm">{promo().title}</CardTitle>
-                      <CardDescription class="mt-2 text-xs leading-relaxed">
-                        {promo().description}
-                      </CardDescription>
-                      <a
-                        href={promo().href}
-                        target="_blank"
-                        rel="noreferrer"
-                        class={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 h-8 w-full gap-1.5 text-xs")}
-                      >
-                        {promo().cta || siteLocale.t("actions.learnMore")}
-                        <ExternalLink class="size-3" aria-hidden="true" />
-                      </a>
-                    </CardContent>
-                  </Card>
-                )}
+                {(promo) => <SidebarPromo promo={promo()} />}
               </Show>
             </div>
           </Container>
