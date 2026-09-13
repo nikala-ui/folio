@@ -46,6 +46,11 @@ export interface FolioPlugin {
     page: FolioPage,
     context: FolioPluginContext,
   ) => void | Promise<void>;
+  /** Expands the scanned catalog before pages are collected and routed. */
+  pagesGenerated?: (
+    pages: readonly FolioPage[],
+    context: FolioPluginContext,
+  ) => readonly FolioPage[] | void | Promise<readonly FolioPage[] | void>;
   /** Transforms page metadata while preserving its slug and URL. */
   pageTransformed?: (
     page: FolioPage,
@@ -74,6 +79,7 @@ export type FolioPluginConfig = readonly FolioPlugin[];
 const HOOKS = [
   "configResolved",
   "buildStart",
+  "pagesGenerated",
   "pageCollected",
   "pageTransformed",
   "pageActions",

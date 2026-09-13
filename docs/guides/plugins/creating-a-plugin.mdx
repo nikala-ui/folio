@@ -148,6 +148,7 @@ load config
   -> configResolved
   -> buildStart
   -> content scan
+  -> pagesGenerated (catalog expansion)
   -> pageCollected (each page)
   -> pageTransformed (each plugin, sequentially)
   -> pageActions (each plugin, sequentially)
@@ -176,9 +177,17 @@ initialization that should happen before pages are collected.
 
 ### `pageCollected`
 
-Receives one scanned `FolioPage` before route and navigation structures are
+Receives one generated `FolioPage` before route and navigation structures are
 built. It is observational: return values are ignored. Use it for validation,
 metrics, or collecting information for a later hook.
+
+### `pagesGenerated`
+
+Receives the scanned page catalog before collection and routing. A plugin may
+return the catalog with additional pages, which then participate in sidebar,
+pagination, virtual routes, and artifact generation. Every page must have a
+unique `slug`/`url` pair and a real `filePath`; this hook does not invent MDX
+source content.
 
 ### `pageTransformed`
 

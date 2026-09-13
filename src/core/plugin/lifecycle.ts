@@ -53,6 +53,24 @@ export class FolioPluginLifecycleManager {
   async configResolved(): Promise<void> { await this.runContextHook("configResolved"); }
   async buildStart(): Promise<void> { await this.runContextHook("buildStart"); }
 
+  async pagesGenerated(pages: readonly FolioPage[]): Promise<readonly FolioPage[]> {
+    let generated = pages.map((page) => snapshot(page));
+    for (const plugin of this.plugins) {
+      if (!plugin.pagesGenerated) continue;
+      try {
+        const result = await plugin.pagesGenerated(snapshot(generated), this.context());
+        if (result !== undefined) {
+          if (!Array.isArray(result)) throw new Error("must return an array of pages");
+          generated = result.map((page) => snapshot(page));
+        }
+        this.validateGeneratedPages(generated);
+      } catch (error) {
+        throw this.wrap(plugin, "pagesGenerated", error);
+      }
+    }
+    return snapshot(generated);
+  }
+
   async pageCollected(page: FolioPage): Promise<void> {
     const collected = snapshot(page);
     this.pages = [...this.pages, collected];
@@ -150,6 +168,18 @@ export class FolioPluginLifecycleManager {
       } catch (error) {
         throw this.wrap(plugin, hook, error);
       }
+    }
+  }
+
+  private validateGeneratedPages(pages: readonly FolioPage[]): void {
+    const identities = new Set<string>();
+    for (const page of pages) {
+      if (!page || typeof page !== "object") throw new Error("each generated page must be an object");
+      if (typeof page.slug !== "string" || !page.slug.trim()) throw new Error("each generated page must have a slug");
+      if (typeof page.url !== "string" || !page.url.trim()) throw new Error("each generated page must have a url");
+      const identity = routeIdentity(page);
+      if (identities.has(identity)) throw new Error(`duplicate generated page route "${page.url}"`);
+      identities.add(identity);
     }
   }
 

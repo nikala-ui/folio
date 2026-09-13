@@ -70,6 +70,7 @@ range. Before Folio 1.0, use a compatible minor range such as `~0.14.0`; after
 
 - `configResolved(context)`
 - `buildStart(context)`
+- `pagesGenerated(pages, context)`
 - `pageCollected(page, context)`
 - `pageTransformed(page, context)`
 - `generate(context)`
@@ -90,6 +91,7 @@ load config
   -> configResolved
   -> buildStart
   -> content scan
+  -> pagesGenerated (catalog expansion)
   -> pageCollected (for each page)
   -> pageTransformed (for each page and plugin)
   -> pageActions (for each page and plugin)
@@ -111,7 +113,8 @@ The hook responsibilities and contracts are:
 | --- | --- | --- |
 | `configResolved` | build context | Observe the final resolved configuration before scanning. |
 | `buildStart` | build context | Prepare plugin state before content discovery. |
-| `pageCollected` | page and context | Observe one scanned `PageData` snapshot. |
+| `pagesGenerated` | page catalog and context | Return the catalog to use before collection and routing; generated routes must be unique. |
+| `pageCollected` | page and context | Observe one generated `PageData` snapshot. |
 | `pageTransformed` | page and context | Return transformed `PageData` while preserving `slug` and `url`. |
 | `pageActions` | page and context | Return serializable links rendered in the page heading action area. |
 | `generate` | build context | Run after artifact generation; production contexts include `outputDir` and the final page catalog. |
@@ -145,11 +148,29 @@ the last successful catalog.
 `pageTransformed` may update a page's metadata, including its title,
 description, order, badge, icon, table of contents, and frontmatter-derived
 values. It must preserve the page route identity (`slug` and `url`). The first
-contract does not allow plugins to add routes or replace MDX source content. A
+`pageTransformed` contract does not allow a plugin to add routes or replace MDX
+source content. Use `pagesGenerated` for route catalog expansion. A
 transformation is applied before route tree, sidebar, and pagination generation
 so those structures consume the transformed page metadata. Source-content
 transformation is intentionally excluded from this contract and requires a
 future, separately specified API.
+
+Use `pagesGenerated` when a plugin owns route generation. It runs after the
+content scan and before `pageCollected`, so returned pages participate in the
+sidebar, pagination, virtual routes, and artifact generation:
+
+```ts
+const routePlugin = defineFolioPlugin({
+  name: "route-generator",
+  pagesGenerated: (pages) => [
+    ...pages,
+    { ...pages[0], slug: "generated", url: "/generated" },
+  ],
+});
+```
+
+Generated pages must have unique `slug`/`url` identity and a real `filePath`.
+The hook does not invent source content or change MDX compilation semantics.
 
 Hook inputs are immutable snapshots, so plugins cannot mutate Folio's
 configuration or collected page data. This includes nested objects, arrays,

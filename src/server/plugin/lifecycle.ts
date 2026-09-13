@@ -75,7 +75,8 @@ export class FolioBuildSession {
       this.pagesPromise = (async () => {
         await this.start();
         const scanned = await scanContent(this.contentDir);
-        for (const page of scanned) {
+        const generated = await lifecycle.pagesGenerated(scanned);
+        for (const page of generated) {
           if (generation !== this.generation) return this.pages();
           await lifecycle.pageCollected(page);
           const transformed = await lifecycle.pageTransformed(page);

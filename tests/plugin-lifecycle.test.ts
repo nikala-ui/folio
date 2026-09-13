@@ -115,6 +115,45 @@ describe("plugin lifecycle manager", () => {
     expect(modes).toEqual(["development", "development", "development"]);
   });
 
+  test("expands the scanned catalog before page collection", async () => {
+    const generatedPage = { ...page, slug: "guide/next", url: "/guide/next", title: "Next" };
+    const calls: string[] = [];
+    const lifecycle = manager([
+      {
+        name: "routes",
+        pagesGenerated: (pages) => {
+          calls.push(`first:${pages.length}`);
+          return [...pages, generatedPage];
+        },
+      },
+      {
+        name: "observer",
+        pagesGenerated: (pages) => {
+          calls.push(`second:${pages.length}`);
+          return pages;
+        },
+      },
+    ]);
+
+    const result = await lifecycle.pagesGenerated([page]);
+
+    expect(calls).toEqual(["first:1", "second:2"]);
+    expect(result.map((current) => current.url)).toEqual(["/guide/start", "/guide/next"]);
+  });
+
+  test("rejects duplicate routes from a page-generation plugin", async () => {
+    const lifecycle = manager([{
+      name: "duplicate-routes",
+      pagesGenerated: (pages) => [...pages, page],
+    }]);
+
+    await expect(lifecycle.pagesGenerated([page])).rejects.toMatchObject({
+      name: "FolioPluginHookError",
+      pluginName: "duplicate-routes",
+      hook: "pagesGenerated",
+    });
+  });
+
   test("chains transformed pages and preserves the route identity", async () => {
     const lifecycle = manager([
       { name: "title", pageTransformed: (current) => ({ ...current, title: `${current.title}!` }) },

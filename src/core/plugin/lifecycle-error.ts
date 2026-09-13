@@ -3,6 +3,7 @@ import type { FolioPage, FolioPluginContext } from "../../plugin.js";
 export type LifecycleHook =
   | "configResolved"
   | "buildStart"
+  | "pagesGenerated"
   | "pageCollected"
   | "pageTransformed"
   | "pageActions"
