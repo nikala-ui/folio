@@ -4,9 +4,10 @@ description: Extend Folio with typed build-time plugins.
 order: 7
 ---
 
-Folio plugins expose a typed lifecycle API for build tooling. This milestone
-provides the standalone lifecycle manager; wiring those hooks into Folio's
-build command is a separate milestone.
+Folio plugins expose a typed lifecycle API integrated with Folio's production
+build command and development server.
+
+For a step-by-step implementation tutorial, see [Create a plugin](../guides/plugins/creating-a-plugin).
 
 ## Register a plugin
 
@@ -35,6 +36,34 @@ name in a `DocsConfig.plugins` array. Hook fields, when present, must be
 functions. Invalid registrations fail configuration loading with an actionable
 error.
 
+## Minimal metadata plugin
+
+The smallest useful plugin can transform page metadata while preserving the
+page route:
+
+```ts
+import { defineFolioPlugin } from "@nikala-ui/folio";
+
+const metadataPlugin = defineFolioPlugin({
+  name: "metadata-example",
+  pageTransformed(page) {
+    return {
+      ...page,
+      description: page.description || `Documentation for ${page.title}`,
+    };
+  },
+});
+
+export default { plugins: [metadataPlugin] };
+```
+
+Keep plugin names stable and lowercase; use a short capability-oriented name,
+not a consumer site name. Published plugins should use the
+`@nikala-ui/folio-plugin-*` package naming convention. A plugin package should
+declare Folio as a peer dependency and document the exact compatible Folio
+range. Before Folio 1.0, use a compatible minor range such as `~0.14.0`; after
+1.0, caret ranges may be used for non-breaking releases.
+
 ## Public contract
 
 `FolioPlugin` currently exposes these optional hooks:
@@ -47,9 +76,105 @@ error.
 - `buildEnd(result, context)`
 
 The context and result types are exported from `@nikala-ui/folio`. The
-standalone lifecycle manager invokes these hooks when called by an integrating
-build tool; Folio's build command does not wire them in yet. Hook inputs are
-immutable snapshots, so plugins cannot mutate Folio's configuration or
-collected page data. Plugin packages should keep feature-specific behavior
-(such as i18n, API documentation, or workspace discovery) outside the core
-package.
+production build invokes these hooks through the lifecycle manager. The
+`generate` context exposes the absolute production `outputDir` and the final
+immutable `pages` catalog; `outputDir` is omitted for sessions that do not
+produce production artifacts, such as development sessions.
+
+## Lifecycle order
+
+An integrating build tool must invoke hooks in this order:
+
+```text
+load config
+  -> configResolved
+  -> buildStart
+  -> content scan
+  -> pageCollected (for each page)
+  -> pageTransformed (for each page and plugin)
+  -> route tree, sidebar, and pagination
+  -> MDX compilation
+  -> artifact generation
+  -> generate
+  -> buildEnd
+```
+
+Hooks run sequentially in registration order. A hook failure stops the current
+operation and is reported as `FolioPluginHookError`, preserving the original
+error in `cause` and adding the plugin name, hook, mode, and page location when
+available.
+
+The hook responsibilities and contracts are:
+
+| Hook | Input | Contract |
+| --- | --- | --- |
+| `configResolved` | build context | Observe the final resolved configuration before scanning. |
+| `buildStart` | build context | Prepare plugin state before content discovery. |
+| `pageCollected` | page and context | Observe one scanned `PageData` snapshot. |
+| `pageTransformed` | page and context | Return transformed `PageData` while preserving `slug` and `url`. |
+| `generate` | build context | Run after artifact generation; production contexts include `outputDir` and the final page catalog. |
+| `buildEnd` | build result and context | Observe the final immutable result, including failed results. |
+
+If a hook fails, later plugins and later hooks in the current operation are not
+called. The integrating tool owns the final process-level failure handling, but
+the lifecycle manager always wraps an unhandled hook failure and retains its
+original cause. `buildEnd` receives `success: false` when the integrating tool
+reports a failed build; it does not convert a failed build into a successful
+one.
+
+## Development and watch behavior
+
+The development server creates a development-mode session during server
+startup. It runs `configResolved`, then `buildStart`, and runs the page hooks
+when the virtual route modules first load. A content add, edit, or removal
+creates a fresh lifecycle manager and rescans the content directory, so the
+new catalog replaces the previous one rather than accumulating pages or plugin
+state. Every development context has `mode: "development"` and does not have
+an `outputDir`.
+
+Development reloads intentionally do not run `generate` or `buildEnd`: those
+hooks describe production artifact generation and final build completion. A
+configuration reload creates a new session from the newly loaded config and
+runs its `configResolved` and `buildStart` hooks. If a development hook fails,
+Folio keeps the server alive, logs the actionable `FolioPluginHookError`, and
+sends the error to the Vite client overlay; the failed reload does not replace
+the last successful catalog.
+
+`pageTransformed` may update a page's metadata, including its title,
+description, order, badge, icon, table of contents, and frontmatter-derived
+values. It must preserve the page route identity (`slug` and `url`). The first
+contract does not allow plugins to add routes or replace MDX source content. A
+transformation is applied before route tree, sidebar, and pagination generation
+so those structures consume the transformed page metadata. Source-content
+transformation is intentionally excluded from this contract and requires a
+future, separately specified API.
+
+Hook inputs are immutable snapshots, so plugins cannot mutate Folio's
+configuration or collected page data. This includes nested objects, arrays,
+maps, sets, dates, regular expressions, and supported provider instances. The
+original config and page objects remain unchanged.
+
+Plugin packages should keep feature-specific behavior (such as i18n, API
+documentation, or workspace discovery) outside the core package.
+
+## Public API and compatibility
+
+The package root exports the plugin authoring surface: `FolioPlugin`,
+`FolioPluginContext`, `FolioBuildResult`, `FolioPluginFactory`,
+`FolioPluginLogger`, `FolioPluginConfig`, `FolioPluginHookError`,
+`createFolioPlugin`, `defineFolioPlugin`, and the validation helpers. The
+`FolioPluginLifecycleManager` and its options are exported for integrating
+build tools; normal plugin authors should use the factory helpers instead.
+
+All hooks are optional. Existing hook names, argument order, route identity
+rules, immutable snapshot guarantee, and error metadata are maintained within
+the compatible Folio range. New optional hooks and fields are additive. A
+breaking hook contract or removal requires a major release (or, before 1.0,
+the next incompatible minor release) and a migration note.
+
+`context.logger.debug`, `info`, `warn`, and `error` are host-owned logging
+methods. Use them for diagnostic, progress, warning, and failure-related
+messages respectively; do not assume a particular console or file sink.
+`FolioPluginHookError` exposes `pluginName`, `hook`, `mode`, optional page
+location metadata, and the original exception in `cause`. Use that metadata
+for actionable reporting without replacing the original error.

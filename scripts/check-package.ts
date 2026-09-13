@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { access, readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
@@ -41,6 +41,22 @@ for (const target of publishedTargets) {
   assert.equal(target.startsWith("./dist/"), true, `publish target must stay under dist: ${target}`);
   if (target.includes("*")) continue;
   await access(path.join(root, target));
+}
+
+const publicApi = await import(pathToFileURL(path.join(root, "dist/index.js")).href);
+for (const symbol of [
+  "createFolioPlugin",
+  "defineFolioPlugin",
+  "validateFolioPlugin",
+  "validateFolioPlugins",
+  "FolioPluginHookError",
+  "createFolioPluginLifecycleManager",
+]) {
+  assert.equal(typeof publicApi[symbol], "function", `public plugin export is missing: ${symbol}`);
+}
+const declaration = await readFile(path.join(root, "dist/index.d.ts"), "utf8");
+for (const typeName of ["FolioPlugin", "FolioPluginContext", "FolioBuildResult", "FolioPluginFactory", "FolioPluginLogger"]) {
+  assert.match(declaration, new RegExp(`\\b${typeName}\\b`), `public plugin type is missing: ${typeName}`);
 }
 
 const cliPath = path.join(root, "dist/cli/index.js");

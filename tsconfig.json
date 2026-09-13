@@ -5,7 +5,7 @@
     "moduleResolution": "bundler",
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
-    "types": ["node"],
+    "types": ["node", "bun-types"],
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "paths": {

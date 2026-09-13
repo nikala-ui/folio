@@ -22,6 +22,8 @@ and Tailwind CSS v4 design tokens.
 - Local search and configurable page metadata.
 - Shiki syntax highlighting with lazy language and theme loading.
 - Custom themes, layouts, components, CSS, logos, and site metadata.
+- Typed plugin lifecycle for production builds and development reloads, with
+  immutable page/config snapshots and actionable hook errors.
 - CLI initialization for a complete documentation project.
 
 The default theme uses the Nikala UI design system. Additional Nikala UI
@@ -185,6 +187,20 @@ export default config;
 ```
 
 See the [Configuration](/configuration) guide for the supported options.
+
+## Plugin status
+
+The plugin API is public and integrated with production builds, development
+reloads, generated projects, and the browser/SSR validation suite. See the
+[plugin authoring guide](docs/configuration/plugins.mdx) for lifecycle order,
+hook contracts, immutable inputs, error handling, and compatibility policy.
+
+The API is pre-1.0 and therefore follows a compatible-minor policy: plugin
+packages should pin a compatible Folio minor range such as `~0.14.0`. The
+current contract supports page metadata transformation while preserving route
+identity; adding routes or replacing source MDX requires a separately defined
+future API. This release adds no breaking plugin contract change and requires
+no migration.
 
 ## Customize the theme
 

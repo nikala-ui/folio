@@ -137,9 +137,69 @@ inspect the production documentation build.
 For runtime, CLI, compiler, routing, theme, or build-pipeline changes, run
 the full validation set before opening a pull request.
 
+## Roadmap and checklist evidence — STRICT
+
+Roadmap checkboxes are an evidence record, not a progress estimate. Never mark
+an item `[x]` because code appears to exist, because a related test passed, or
+because the behavior is inferred from another milestone.
+
+Before marking any item `[x]`, all of the following must be true:
+
+- The exact production code path is implemented.
+- A dedicated test or documented manual verification checks that exact behavior.
+- The validation command has been run successfully in the current worktree.
+- Any required output, project, fixture, or artifact exists at a reproducible,
+  inspectable path.
+- The evidence is recorded next to the item or in the handoff with exact file
+  paths, line numbers where useful, commands, and artifact paths.
+
+The following rules are mandatory:
+
+- If any evidence is missing, keep the item `[ ]`.
+- A temporary `/tmp` directory created during a test is not an inspectable
+  consumer project and must not be described or checked off as one. It may only
+  support a separately worded runtime-fixture test item.
+- A test that only checks `length`, truthiness, or build completion does not
+  prove identity, ordering, isolation, rendering, or user-visible behavior.
+  Add assertions for the exact contract.
+- Passing unit tests do not prove integration, SSR, browser, visual, or HMR
+  behavior. Keep those items unchecked until the relevant evidence exists.
+- Do not move an implementation from one milestone to another by marking the
+  destination milestone complete after the fact. Record what was already
+  implemented and verify the destination milestone independently.
+- Do not update a checkbox first and justify it later. Finish the work, run the
+  verification, audit every item, then update the checklist once.
+- When uncertain, prefer `[ ]` and report the missing evidence explicitly.
+- Before handoff, audit every newly changed `[x]` and be able to answer:
+  `What exact code, what exact assertion, what exact command, and what exact
+  inspectable artifact prove this item?`
+
+## Truthfulness and no invention — ABSOLUTE
+
+Inventing code, solutions, files, projects, artifacts, test results, commands,
+implementation status, or completion claims is forbidden. Do not describe a
+solution as implemented unless the solution actually exists in the worktree and
+has been inspected. Do not claim a file or project exists unless its exact path
+has been verified. Do not claim a test, build, browser check, or manual
+verification passed unless that exact command or verification was actually run
+and its result was observed.
+
+If the requested solution does not exist, is incomplete, or cannot be verified,
+state that plainly. Use `[ ]`, not `[x]`, for incomplete or unverified roadmap
+items. Never fill an evidence gap with an assumption, a plausible explanation,
+an ephemeral side effect, or a future plan. The only acceptable completion claim
+is one supported by real code, real output, and recorded verification evidence.
+
 ## Git and pull requests
 
 - Keep commits focused and logically atomic.
+- `main` is protected for this workflow: do not check it out, modify it,
+  merge into it, rebase onto it, or push to it unless the user gives explicit
+  permission.
+- Each roadmap milestone must use its own branch created from `development`.
+- Completed milestone branches may be merged only into `development`.
+- Treat `development` as the integration branch for milestone work; never use
+  `main` as the integration target.
 - Do not commit `node_modules/`, build output, local test projects, editor
   files, credentials, or unrelated generated files.
 - Do not reformat unrelated code.

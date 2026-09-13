@@ -1,9 +1,14 @@
+import os from "node:os";
+import path from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import {
   createFolioPluginLifecycleManager,
   FolioPluginHookError,
 } from "../src/core/plugin-lifecycle.js";
 import type { FolioPage, FolioPlugin } from "../src/plugin.js";
+import { nikalaDocsPlugin } from "../src/server/plugin/index.js";
+import { RESOLVED_TREE_ID } from "../src/server/plugin/constants.js";
 
 const page: FolioPage = {
   slug: "guide/start",
@@ -14,13 +19,17 @@ const page: FolioPage = {
   title: "Start",
 };
 
-function manager(plugins: readonly FolioPlugin[] = [], pages: readonly FolioPage[] = []) {
+function manager(
+  plugins: readonly FolioPlugin[] = [],
+  pages: readonly FolioPage[] = [],
+  mode: "development" | "production" = "production",
+) {
   return createFolioPluginLifecycleManager({
     plugins,
     config: { title: "Docs", navigation: { sidebar: { nav: "auto" } } },
     rootDir: "/project",
     contentDir: "/project/docs",
-    mode: "production",
+    mode,
     logger: { debug() {}, info() {}, warn() {}, error() {} },
     pages,
   });
@@ -64,6 +73,47 @@ describe("plugin lifecycle manager", () => {
     ]);
   });
 
+  test("stops the current hook operation after the first plugin failure", async () => {
+    const calls: string[] = [];
+    const lifecycle = manager([
+      {
+        name: "failing",
+        buildStart: () => {
+          calls.push("failing");
+          throw new Error("stop here");
+        },
+      },
+      {
+        name: "later",
+        buildStart: () => { calls.push("later"); },
+      },
+    ]);
+
+    await expect(lifecycle.buildStart()).rejects.toMatchObject({
+      name: "FolioPluginHookError",
+      pluginName: "failing",
+      hook: "buildStart",
+    });
+    expect(calls).toEqual(["failing"]);
+  });
+
+  test("passes the configured mode to every context hook", async () => {
+    const modes: string[] = [];
+    const plugin: FolioPlugin = {
+      name: "mode-observer",
+      configResolved: (context) => { modes.push(context.mode); },
+      buildStart: (context) => { modes.push(context.mode); },
+      generate: (context) => { modes.push(context.mode); },
+    };
+
+    const development = manager([plugin], [], "development");
+    await development.configResolved();
+    await development.buildStart();
+    await development.generate();
+
+    expect(modes).toEqual(["development", "development", "development"]);
+  });
+
   test("chains transformed pages and preserves the route identity", async () => {
     const lifecycle = manager([
       { name: "title", pageTransformed: (current) => ({ ...current, title: `${current.title}!` }) },
@@ -80,6 +130,42 @@ describe("plugin lifecycle manager", () => {
       pluginName: "bad-route",
       hook: "pageTransformed",
     });
+  });
+
+  test("transforms page metadata without adding a page or changing its route", async () => {
+    const lifecycle = manager([{
+      name: "metadata",
+      pageTransformed: (current) => ({
+        ...current,
+        title: "Updated",
+        description: "Updated description",
+        frontmatter: {
+          ...current.frontmatter,
+          order: 2,
+          badge: "New",
+          icon: "sparkles",
+          toc: false,
+        },
+      }),
+    }], [page]);
+
+    const transformed = await lifecycle.pageTransformed(page);
+    const pages = lifecycle.getPages();
+
+    expect(transformed).toMatchObject({
+      slug: page.slug,
+      url: page.url,
+      title: "Updated",
+      description: "Updated description",
+      frontmatter: {
+        order: 2,
+        badge: "New",
+        icon: "sparkles",
+        toc: false,
+      },
+    });
+    expect(pages).toHaveLength(1);
+    expect(pages[0].title).toBe("Updated");
   });
 
   test("adds plugin and hook metadata to failures while retaining the cause", async () => {
@@ -113,6 +199,23 @@ describe("plugin lifecycle manager", () => {
     const exposed = lifecycle.getPages();
     expect(() => (exposed as FolioPage[])[0].title = "changed").toThrow();
     expect(lifecycle.getPages()[0].title).toBe("Start");
+  });
+
+  test("gives buildEnd an immutable result snapshot", async () => {
+    let received!: { success: boolean; outputDir: string; pages: readonly FolioPage[] };
+    const lifecycle = manager([{
+      name: "result-observer",
+      buildEnd: (result) => { received = result; },
+    }]);
+    const result = { success: true, outputDir: "/out", pages: [page] };
+
+    await lifecycle.buildEnd(result);
+
+    expect(Object.isFrozen(received)).toBe(true);
+    expect(Object.isFrozen(received.pages)).toBe(true);
+    expect(() => (received.outputDir as string) = "/other").toThrow();
+    expect(() => (received.pages as FolioPage[]).push(page)).toThrow();
+    expect(result.outputDir).toBe("/out");
   });
 
   test("deeply snapshots maps, sets, arrays, plain objects, and providers", async () => {
@@ -175,6 +278,28 @@ describe("plugin lifecycle manager", () => {
     });
   });
 
+  test("preserves cyclic references without exposing mutable source objects", async () => {
+    const metadata: { name: string; self?: unknown } = { name: "cycle" };
+    metadata.self = metadata;
+    const sourcePage = {
+      ...page,
+      frontmatter: { title: "Start", metadata },
+    } as FolioPage;
+    let received!: FolioPage;
+    const lifecycle = manager([{
+      name: "cycle-observer",
+      pageCollected: (current) => { received = current; },
+    }]);
+
+    await lifecycle.pageCollected(sourcePage);
+
+    const exposed = received.frontmatter.metadata as { name: string; self: unknown };
+    expect(exposed.self).toBe(exposed);
+    expect(() => (exposed.name as string) = "changed").toThrow();
+    expect(metadata.name).toBe("cycle");
+    expect(metadata.self).toBe(metadata);
+  });
+
   test("adds page route, source path, and mode to page-hook failures", async () => {
     const lifecycle = manager([{
       name: "page-check",
@@ -200,6 +325,65 @@ describe("plugin lifecycle manager", () => {
       expect((error as Error).message).toContain('source "/content/guide/start.mdx"');
       expect((error as Error).message).toContain('mode "production"');
     }
+  });
+
+  test("adds page metadata to pageCollected failures", async () => {
+    const cause = new Error("invalid collected page");
+    const lifecycle = manager([{
+      name: "page-collector",
+      pageCollected: () => { throw cause; },
+    }]);
+
+    await expect(lifecycle.pageCollected({
+      ...page,
+      sourcePath: "/content/guide/start.mdx",
+    })).rejects.toMatchObject({
+      name: "FolioPluginHookError",
+      pluginName: "page-collector",
+      hook: "pageCollected",
+      cause,
+      pageRoute: "/guide/start",
+      sourcePath: "/content/guide/start.mdx",
+    });
+  });
+
+  test("retains the original cause for context and build-end failures", async () => {
+    const contextCause = new Error("context failure");
+    const contextLifecycle = manager([{
+      name: "context-failure",
+      configResolved: () => { throw contextCause; },
+    }]);
+    await expect(contextLifecycle.configResolved()).rejects.toMatchObject({
+      hook: "configResolved",
+      cause: contextCause,
+    });
+
+    const buildEndCause = new Error("build ended unsuccessfully");
+    const buildEndLifecycle = manager([{
+      name: "build-end-failure",
+      buildEnd: () => { throw buildEndCause; },
+    }]);
+    await expect(buildEndLifecycle.buildEnd({
+      success: false,
+      outputDir: "/out",
+      pages: [],
+    })).rejects.toMatchObject({
+      hook: "buildEnd",
+      cause: buildEndCause,
+    });
+  });
+
+  test("passes failed build results to buildEnd without changing their status", async () => {
+    let received!: { success: boolean; outputDir: string; pages: readonly FolioPage[] };
+    const lifecycle = manager([{
+      name: "failed-build-observer",
+      buildEnd: (result) => { received = result; },
+    }]);
+
+    await lifecycle.buildEnd({ success: false, outputDir: "/out", pages: [] });
+
+    expect(received.success).toBe(false);
+    expect(received.outputDir).toBe("/out");
   });
 
   test("keeps Date and RegExp snapshot values immutable", async () => {
@@ -236,5 +420,96 @@ describe("plugin lifecycle manager", () => {
     expect(() => metadata.sourcePattern.lastIndex = 0).toThrow();
     expect(sourceDate.getTime()).toBe(Date.parse("2025-01-02T03:04:05.000Z"));
     expect(sourcePattern.lastIndex).toBe(1);
+  });
+
+  test("replaces the lifecycle session when the development config reloads", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-config-reload-"));
+    const configPath = path.join(root, "docs.config.ts");
+    try {
+      await mkdir(path.join(root, "docs"));
+      await writeFile(path.join(root, "docs", "index.mdx"), "---\ntitle: Home\n---\n\n# Home\n");
+      await writeFile(configPath, `export default { title: "First", plugins: [{ name: "first", pageTransformed: (page) => ({ ...page, title: "First title" }) }] };`);
+
+      const plugin = nikalaDocsPlugin({ configRoot: root });
+      const configResolved = plugin.configResolved as (config: unknown) => Promise<void>;
+      await configResolved({ command: "serve", build: { ssr: false } });
+      const load = plugin.load as (id: string) => Promise<string | null>;
+      expect(await load(RESOLVED_TREE_ID)).toContain("First title");
+
+      let configChange: ((file: string) => Promise<void>) | undefined;
+      const configureServer = plugin.configureServer as (server: unknown) => void;
+      configureServer({
+        watcher: {
+          add() {},
+          on(event: string, handler: (file: string) => Promise<void>) {
+            if (event === "change") configChange = handler;
+          },
+        },
+        moduleGraph: { getModuleById() { return undefined; } },
+        ws: { send() {} },
+      });
+
+      await writeFile(configPath, `export default { title: "Second", plugins: [{ name: "second", pageTransformed: (page) => ({ ...page, title: "Second title" }) }] };`);
+      await configChange?.(configPath);
+      expect(await load(RESOLVED_TREE_ID)).toContain("Second title");
+      expect(await load(RESOLVED_TREE_ID)).not.toContain("First title");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("rescans content and sends a full reload after a development page change", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "folio-content-reload-"));
+      const config = {
+        title: "Reload Docs",
+        plugins: [{
+          name: "content-reload-plugin",
+        pageTransformed: (current: FolioPage) => {
+          if (current.title === "Broken") throw new Error("invalid development page");
+          return { ...current, title: `${current.title} (plugin)` };
+        },
+      }],
+    };
+    try {
+      await mkdir(path.join(root, "docs"));
+      const pagePath = path.join(root, "docs", "index.mdx");
+      await writeFile(pagePath, "---\ntitle: First\n---\n\n# First\n");
+      const plugin = nikalaDocsPlugin({ configRoot: root, docsDir: "docs", config });
+      const configResolved = plugin.configResolved as (resolved: unknown) => Promise<void>;
+      await configResolved({ command: "serve", build: { ssr: false } });
+      const load = plugin.load as (id: string) => Promise<string | null>;
+      expect(await load(RESOLVED_TREE_ID)).toContain("First (plugin)");
+
+      let contentChange: ((file: string) => Promise<void>) | undefined;
+      const messages: Array<{ type: string; err?: { message?: string } }> = [];
+      const configureServer = plugin.configureServer as (server: unknown) => void;
+      configureServer({
+        watcher: {
+          add() {},
+          on(event: string, handler: (file: string) => Promise<void>) {
+            if (event === "change") contentChange = handler;
+          },
+        },
+        moduleGraph: { getModuleById() { return undefined; } },
+        ws: { send(message: { type: string }) { messages.push(message); } },
+        config: { logger: { error() {} } },
+      });
+
+      await writeFile(pagePath, "---\ntitle: Second\n---\n\n# Second\n");
+      await contentChange?.(pagePath);
+      const tree = await load(RESOLVED_TREE_ID);
+      expect(tree).toContain("Second (plugin)");
+      expect(tree).not.toContain("First (plugin)");
+      await new Promise((resolve) => setTimeout(resolve, 90));
+      expect(messages).toContainEqual({ type: "full-reload" });
+
+      await writeFile(pagePath, "---\ntitle: Broken\n---\n\n# Broken\n");
+      await contentChange?.(pagePath);
+      const errorMessage = messages.find((message) => message.type === "error")?.err?.message;
+      expect(errorMessage).toContain('Plugin "content-reload-plugin" hook "pageTransformed"');
+      expect(await load(RESOLVED_TREE_ID)).toContain("Second (plugin)");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
