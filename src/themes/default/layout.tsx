@@ -18,6 +18,15 @@ import type { DocsLayoutProps } from "../types.js";
 import { PageActions } from "./components/page-actions.jsx";
 import { SidebarPromo } from "./components/sidebar-promo.jsx";
 import { createPageCopy } from "./hooks/use-page-copy.js";
+import {
+  isLandingPage,
+  shouldShowLandingSidebar,
+  shouldShowNavbar,
+  shouldShowSidebarFooter,
+  shouldShowSidebarHeader,
+  shouldShowToc,
+  shouldUseSidebarLayout,
+} from "./lib/layout-visibility.js";
 
 export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
   const [local, rest] = splitProps(props, [
@@ -41,20 +50,13 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
   const searchProvider = () => resolveSearchProvider(local.config.search);
 
   const currentUrl = () => local.currentPage?.url;
-  const landingPage = () =>
-    local.currentPage?.url === "/" && local.config.home?.layout === "landing";
-  const showLandingSidebar = () => local.config.home?.showSidebar === true;
-  const showNavbar = () => local.config.home?.showNavbar !== false;
-  const showToc = () =>
-    Boolean(
-      local.toc &&
-      local.toc.length > 0 &&
-      local.currentPage?.frontmatter?.toc !== false &&
-      (!landingPage() || local.config.home?.showToc === true)
-    );
-  const sidebarLayout = () => local.config.navigation?.layout !== "top";
-  const sidebarHeader = () => local.config.navigation?.sidebar?.header !== false;
-  const sidebarFooter = () => local.config.navigation?.sidebar?.footer !== false;
+  const landingPage = () => isLandingPage(local.currentPage, local.config);
+  const showLandingSidebar = () => shouldShowLandingSidebar(local.config);
+  const showNavbar = () => shouldShowNavbar(local.config);
+  const showToc = () => shouldShowToc(local.toc, local.currentPage, local.config, landingPage());
+  const sidebarLayout = () => shouldUseSidebarLayout(local.config);
+  const sidebarHeader = () => shouldShowSidebarHeader(local.config);
+  const sidebarFooter = () => shouldShowSidebarFooter(local.config);
   const sidebarPromo = () => local.config.navigation?.sidebar?.promo;
   const sourceUrl = () => {
     const page = local.currentPage;
@@ -87,7 +89,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
 
   const content = () => (
     <SidebarInset class={cn("min-w-0", local.class)} {...rest}>
-      <Container as="main" size="2xl" class="min-w-0 w-full max-w-[96rem] flex-1 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_16rem] items-start gap-4 sm:gap-8 py-6 sm:py-8">
+      <Container as="main" size="2xl" class="min-w-0 w-full max-w-384 flex-1 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_16rem] items-start gap-4 sm:gap-8 py-6 sm:py-8">
         <Container as="article" size="full" class="min-w-0 max-w-none mx-0 px-0 sm:px-4 w-full">
           <Show when={local.breadcrumbs && local.breadcrumbs.length > 0}>
             <DocsBreadcrumbs items={local.breadcrumbs!} class="mb-6" />
