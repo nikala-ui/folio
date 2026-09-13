@@ -55,7 +55,7 @@ export const DocsSidebar: Component<DocsSidebarProps> = (props) => {
       <Show when={!sidebar.isMobile() || sidebar.openMobile()}>
         <div class={cn(
           "w-0 md:shrink-0",
-          sidebar.open() ? "md:w-[var(--sidebar-width)]" : "md:w-[var(--sidebar-width-icon)]"
+          sidebar.open() ? "md:w-(--sidebar-width)" : "md:w-(--sidebar-width-icon)"
         )}>
           <Sidebar
             ref={setSidebarElement}
@@ -67,60 +67,60 @@ export const DocsSidebar: Component<DocsSidebarProps> = (props) => {
             )}
             {...rest}
           >
-      <Show when={local.showHeader !== false}>
-        <SidebarHeader class="h-14 box-border p-3 group-data-[collapsible=icon]:p-2">
-          <a
-            href={local.logo?.href || "/"}
-            data-sidebar="menu-button"
-            class={cn(sidebarMenuButtonVariants({ variant: "default", size: "default" }), "h-8 w-full justify-between group-data-[collapsible=icon]:h-10")}
-          >
-            <div class="flex items-center gap-2.5 overflow-hidden">
-              <Show when={local.logo?.image} fallback={<Logo class="h-7 w-auto" />}>
-                {(image) => <img src={image()} alt={brandText()} class="size-7 shrink-0 rounded-md object-contain" />}
-              </Show>
-              <div class="flex min-w-0 flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-                <span class="truncate text-xs font-bold">{brandText()}</span>
-                <span class="truncate text-[10px] text-muted-foreground">{local.headerSubtitle}</span>
-              </div>
-            </div>
-          </a>
-        </SidebarHeader>
-      </Show>
-
-      <SidebarContent class="h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <Show when={local.nav?.length}>
-          <nav aria-label={siteLocale.t("navigation.primary")} class="border-b border-border/60 px-2 py-2 md:hidden">
-            <For each={local.nav}>
-              {(item) => (
+            <Show when={local.showHeader !== false}>
+              <SidebarHeader class="h-14 box-border p-3 group-data-[collapsible=icon]:p-2">
                 <a
-                  href={item.href}
-                  target={item.external ? "_blank" : undefined}
-                  rel={item.external ? "noreferrer" : undefined}
-                  onClick={() => sidebar.setOpenMobile(false)}
-                  class={cn(sidebarMenuButtonVariants({ variant: "default", size: "default" }), "w-full justify-start text-sm font-normal")}
+                  href={local.logo?.href || "/"}
+                  data-sidebar="menu-button"
+                  class={cn(sidebarMenuButtonVariants({ variant: "default", size: "default" }), "h-8 w-full justify-between group-data-[collapsible=icon]:h-10")}
                 >
-                  {item.title}
+                  <div class="flex items-center gap-2.5 overflow-hidden">
+                    <Show when={local.logo?.image} fallback={<Logo class="h-7 w-auto" />}>
+                      {(image) => <img src={image()} alt={brandText()} class="size-7 shrink-0 rounded-md object-contain" />}
+                    </Show>
+                    <div class="flex min-w-0 flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
+                      <span class="truncate text-xs font-bold">{brandText()}</span>
+                      <span class="truncate text-[10px] text-muted-foreground">{local.headerSubtitle}</span>
+                    </div>
+                  </div>
                 </a>
-              )}
-            </For>
-          </nav>
-        </Show>
-        <SidebarTree tree={local.tree} pages={local.pages} currentUrl={local.currentUrl} />
-      </SidebarContent>
+              </SidebarHeader>
+            </Show>
 
-      <Show when={local.showFooter !== false}>
-        <SidebarFooter class="p-2">
-          <SidebarMenuButton size="lg" class="w-full justify-start">
-            <div class="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/15 text-xs font-bold text-primary">
-              N
-            </div>
-            <div class="flex min-w-0 flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-              <span class="truncate text-xs font-semibold">{brandText()}</span>
-              <span class="truncate text-[10px] text-muted-foreground">{local.footerText}</span>
-            </div>
-          </SidebarMenuButton>
-        </SidebarFooter>
-      </Show>
+            <SidebarContent class="h-full overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
+              <Show when={local.nav?.length}>
+                <nav aria-label={siteLocale.t("navigation.primary")} class="border-b border-border/60 px-2 py-2 md:hidden">
+                  <For each={local.nav}>
+                    {(item) => (
+                      <a
+                        href={item.href}
+                        target={item.external ? "_blank" : undefined}
+                        rel={item.external ? "noreferrer" : undefined}
+                        onClick={() => sidebar.setOpenMobile(false)}
+                        class={cn(sidebarMenuButtonVariants({ variant: "default", size: "default" }), "w-full justify-start text-sm font-normal")}
+                      >
+                        {item.title}
+                      </a>
+                    )}
+                  </For>
+                </nav>
+              </Show>
+              <SidebarTree tree={local.tree} pages={local.pages} currentUrl={local.currentUrl} />
+            </SidebarContent>
+
+            <Show when={local.showFooter !== false}>
+              <SidebarFooter class="p-2">
+                <SidebarMenuButton size="lg" class="w-full justify-start">
+                  <div class="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/15 text-xs font-bold text-primary">
+                    N
+                  </div>
+                  <div class="flex min-w-0 flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
+                    <span class="truncate text-xs font-semibold">{brandText()}</span>
+                    <span class="truncate text-[10px] text-muted-foreground">{local.footerText}</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarFooter>
+            </Show>
           </Sidebar>
         </div>
       </Show>
