@@ -7,6 +7,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 
 export interface PagerItem {
   title: string;
@@ -25,6 +26,7 @@ export interface PagerLinkProps extends JSX.AnchorHTMLAttributes<HTMLAnchorEleme
  */
 export const PagerLink: Component<PagerLinkProps> = (props) => {
   const [local, rest] = splitProps(props, ["title", "href", "type", "class"]);
+  const siteLocale = useSiteLocale();
 
   const isNext = () => local.type === "next";
 
@@ -43,10 +45,10 @@ export const PagerLink: Component<PagerLinkProps> = (props) => {
           <CardDescription class="flex items-center gap-1 text-xs font-medium text-muted-foreground">
             <Show when={!isNext()}>
               <ChevronLeft class="size-3.5 transition-transform group-hover:-translate-x-0.5" />
-              <span>Previous</span>
+              <span>{siteLocale.t("pagination.previous")}</span>
             </Show>
             <Show when={isNext()}>
-              <span>Next</span>
+              <span>{siteLocale.t("pagination.next")}</span>
               <ChevronRight class="size-3.5 transition-transform group-hover:translate-x-0.5" />
             </Show>
           </CardDescription>

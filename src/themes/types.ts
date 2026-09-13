@@ -6,6 +6,9 @@ export type BreadcrumbItemData = { title: string; href?: string };
 
 export interface DocsNavbarProps {
   config: DocsConfig;
+  currentPage?: PageData;
+  pages?: readonly PageData[];
+  onNavigate?: (url: string) => void;
   onOpenSearch?: () => void;
   showBrand?: boolean;
   showSidebarTrigger?: boolean;
@@ -15,6 +18,7 @@ export interface DocsNavbarProps {
 
 export interface DocsSidebarProps {
   tree: SidebarItem[];
+  pages?: readonly PageData[];
   nav?: NavItem[];
   currentUrl?: string;
   title?: string;
@@ -59,6 +63,7 @@ export interface DocsLayoutProps {
   tree: SidebarItem[];
   pages?: PageData[];
   currentPage?: PageData;
+  onNavigate?: (url: string) => void;
   breadcrumbs?: BreadcrumbItemData[];
   toc?: TocItem[];
   prev?: { title: string; href: string };

@@ -41,7 +41,6 @@ function uniqueTranslationPages(pages: PageData[]): PageData[] {
 }
 
 export function buildSidebarTree(pages: PageData[], directories: string[] = []): SidebarItem[] {
-  pages = uniqueTranslationPages(pages);
   const rootPages: PageData[] = [];
   const categoryMap = new Map<string, PageData[]>();
   const locales = new Set(
@@ -49,6 +48,7 @@ export function buildSidebarTree(pages: PageData[], directories: string[] = []):
       .map((page) => typeof page.frontmatter.locale === "string" ? page.frontmatter.locale : undefined)
       .filter((locale): locale is string => Boolean(locale)),
   );
+  pages = uniqueTranslationPages(pages);
 
   for (const directory of directories) {
     const category = navigationDirectorySegments(directory, locales)[0];

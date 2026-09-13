@@ -5,6 +5,7 @@ import { DocsPageContent } from "./components/docs-page-content.jsx";
 import type { AppProps } from "./app-types.js";
 import { createPageNavigation } from "./navigation/page-navigation.js";
 import { createDocsRouter } from "./routing/use-docs-router.js";
+import { SiteLocaleProvider } from "../plugins/i18n/runtime.jsx";
 
 // @ts-ignore
 import rawConfig from "virtual:folio-config";
@@ -52,21 +53,29 @@ export const App: Component<AppProps> = (props) => {
   const navigation = createPageNavigation(router.currentPage, allPages, sidebarTree);
 
   return (
-    <DocsLayoutShell
-      config={config}
-      tree={sidebarTree}
+    <SiteLocaleProvider
+      config={config.uiLocale}
       pages={allPages}
-      currentPage={router.currentPage()}
-      breadcrumbs={navigation.breadcrumbs()}
-      toc={router.activePageModule() ? navigation.toc() : []}
-      prev={navigation.prevPage()}
-      next={navigation.nextPage()}
-      sourceContent={sourceContent()}
+      currentPath={router.currentPage()?.url}
+      onNavigate={router.navigate}
     >
-      <DocsPageContent
-        pageModule={router.activePageModule}
-        mdxComponents={props.mdxComponents || defaultMdxComponents}
-      />
-    </DocsLayoutShell>
+      <DocsLayoutShell
+        config={config}
+        tree={sidebarTree}
+        pages={allPages}
+        currentPage={router.currentPage()}
+        onNavigate={router.navigate}
+        breadcrumbs={navigation.breadcrumbs()}
+        toc={router.activePageModule() ? navigation.toc() : []}
+        prev={navigation.prevPage()}
+        next={navigation.nextPage()}
+        sourceContent={sourceContent()}
+      >
+        <DocsPageContent
+          pageModule={router.activePageModule}
+          mdxComponents={props.mdxComponents || defaultMdxComponents}
+        />
+      </DocsLayoutShell>
+    </SiteLocaleProvider>
   );
 };

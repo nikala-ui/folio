@@ -19,6 +19,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/cn";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 
 /* --- Constants --- */
 const SIDEBAR_COOKIE_NAME = "nikala_sidebar_state";
@@ -245,11 +246,12 @@ export interface SidebarTriggerProps extends JSX.ButtonHTMLAttributes<HTMLButton
 export const SidebarTrigger: Component<SidebarTriggerProps> = (props) => {
   const [local, rest] = splitProps(props, ["class", "onClick"]);
   const { toggleSidebar, side, isMobile, openMobile, setOpenMobile } = useSidebar();
+  const siteLocale = useSiteLocale();
 
   return (
     <button
       type="button"
-      aria-label="Toggle Sidebar"
+      aria-label={siteLocale.t("navigation.sidebar")}
       onClick={(e) => {
         if (typeof local.onClick === "function") local.onClick(e);
         if (isMobile()) setOpenMobile(!openMobile());
@@ -264,7 +266,7 @@ export const SidebarTrigger: Component<SidebarTriggerProps> = (props) => {
       <Show when={side() === "right"} fallback={<PanelLeft class="size-4" />}>
         <PanelRight class="size-4" />
       </Show>
-      <span class="sr-only">Toggle Sidebar</span>
+      <span class="sr-only">{siteLocale.t("navigation.sidebar")}</span>
     </button>
   );
 };
@@ -277,15 +279,16 @@ export interface SidebarRailProps extends JSX.ButtonHTMLAttributes<HTMLButtonEle
 export const SidebarRail: Component<SidebarRailProps> = (props) => {
   const [local, rest] = splitProps(props, ["class"]);
   const { toggleSidebar } = useSidebar();
+  const siteLocale = useSiteLocale();
 
   return (
     <button
       type="button"
       data-sidebar="rail"
-      aria-label="Toggle Sidebar Rail"
+      aria-label={siteLocale.t("navigation.toggleSidebarRail")}
       tabIndex={-1}
       onClick={toggleSidebar}
-      title="Toggle Sidebar"
+      title={siteLocale.t("navigation.sidebar")}
       class={cn(
         "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-border group-data-[side=left]:-right-4 group-data-[side=right]:left-0 sm:flex cursor-w-resize",
         local.class

@@ -1,6 +1,8 @@
 import path from "node:path";
 import fs from "fs-extra";
 
+export { SITE_LOCALE_STORAGE_KEY } from "./constants.js";
+
 export const SITE_TRANSLATION_KEYS = [
   "navigation.search",
   "navigation.searchLabel",

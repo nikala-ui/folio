@@ -11,17 +11,20 @@ import { Badge } from "@/components/ui/badge";
 import { Kbd } from "@/components/ui/kbd";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { DocsSiteLanguageSwitcher } from "./components/site-language-switcher.jsx";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 import { Logo } from "@/components/ui/logo";
 import { Search } from "lucide-solid";
 import type { DocsNavbarProps } from "../types.js";
 
 export const DocsNavbar: Component<DocsNavbarProps> = (props) => {
-  const [local, rest] = splitProps(props, ["config", "onOpenSearch", "showBrand", "showSidebarTrigger", "mobileSidebarTrigger", "class"]);
+  const [local, rest] = splitProps(props, ["config", "currentPage", "pages", "onNavigate", "onOpenSearch", "showBrand", "showSidebarTrigger", "mobileSidebarTrigger", "class"]);
 
   const title = () => local.config.title || "Folio";
   const logoText = () => local.config.logo?.text || title();
   const logoHref = () => local.config.logo?.href || "/";
   const repoUrl = () => local.config.repository?.url;
+  const siteLocale = useSiteLocale();
 
   return (
     <Navbar
@@ -77,9 +80,9 @@ export const DocsNavbar: Component<DocsNavbarProps> = (props) => {
                 onClick={() => local.onOpenSearch?.()}
                 class="hidden sm:inline-flex text-muted-foreground w-48 sm:w-64 justify-between h-8 text-xs font-normal"
               >
-                <span class="inline-flex items-center gap-2">
-                  <Search class="size-3.5" />
-                  <span>Search docs...</span>
+              <span class="inline-flex items-center gap-2">
+                <Search class="size-3.5" />
+                <span>{siteLocale.t("navigation.search")}</span>
                 </span>
                 <Kbd size="sm">⌘K</Kbd>
               </Button>
@@ -88,7 +91,7 @@ export const DocsNavbar: Component<DocsNavbarProps> = (props) => {
                 size="sm"
                 onClick={() => local.onOpenSearch?.()}
                 class="sm:hidden p-2"
-                aria-label="Search docs"
+                aria-label={siteLocale.t("navigation.searchLabel")}
               >
                 <Search class="size-4" />
               </Button>
@@ -105,11 +108,15 @@ export const DocsNavbar: Component<DocsNavbarProps> = (props) => {
                   rel="noreferrer"
                   class={buttonVariants({ variant: "ghost", size: "sm" }) + " hidden sm:inline-flex h-8 px-2 text-xs"}
                 >
-                  GitHub
+                  {siteLocale.t("navigation.github")}
                 </a>
               </NavbarItem>
             )}
           </Show>
+
+          <NavbarItem>
+            <DocsSiteLanguageSwitcher currentPage={local.currentPage} pages={local.pages} onNavigate={local.onNavigate} />
+          </NavbarItem>
 
           {/* Theme Toggle */}
           <NavbarItem>

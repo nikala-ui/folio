@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { createClipboard } from "@/hooks/create-clipboard";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 import { cn } from "@/lib/cn";
 
 export type DefaultPackageManager = "bun" | "pnpm" | "npm" | "yarn" | "bunx" | "npx" | "deno";
@@ -160,6 +161,7 @@ export const PackageManagerTabs: ParentComponent<PackageManagerTabsProps> = (pro
   });
 
   const clipboard = createClipboard();
+  const siteLocale = useSiteLocale();
   const copyable = () => local.copyable ?? true;
 
   const handleCopy = async () => {
@@ -206,7 +208,7 @@ export const PackageManagerTabs: ParentComponent<PackageManagerTabsProps> = (pro
               variant="ghost"
               size="icon"
               onClick={handleCopy}
-              aria-label={clipboard.copied() ? "Copied command" : "Copy command"}
+              aria-label={clipboard.copied() ? siteLocale.t("code.copied") : siteLocale.t("code.copy")}
               class="size-6 p-0 rounded-xs text-muted-foreground hover:bg-background hover:text-foreground cursor-pointer"
             >
               <Show when={clipboard.copied()} fallback={<Copy class="size-3.5" />}>
@@ -214,7 +216,7 @@ export const PackageManagerTabs: ParentComponent<PackageManagerTabsProps> = (pro
               </Show>
             </TooltipTrigger>
             <TooltipContent class="text-[10px] py-1 px-2">
-              {clipboard.copied() ? "Copied!" : "Copy command"}
+              {clipboard.copied() ? siteLocale.t("actions.copied") : siteLocale.t("code.copy")}
             </TooltipContent>
           </Tooltip>
         </Show>
