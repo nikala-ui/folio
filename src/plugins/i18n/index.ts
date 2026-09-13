@@ -30,6 +30,20 @@ function normalizeOptions(options: I18nPluginOptions): Required<I18nPluginOption
   };
 }
 
+function routeFromLocaleDirectory(page: { url: string; sourcePath?: string }, locale: string, defaultLocale: string): string {
+  const sourcePath = page.sourcePath?.split("/") ?? [];
+  const sourceLocale = sourcePath[0];
+  if (sourceLocale !== locale) return page.url;
+
+  const segments = page.url.split("/").filter(Boolean);
+  if (locale === defaultLocale) segments.shift();
+  return segments.length ? `/${segments.join("/")}` : "/";
+}
+
+function slugFromUrl(url: string): string {
+  return url === "/" ? "index" : url.slice(1).replace(/\//g, "-");
+}
+
 /**
  * Normalizes page locale metadata without changing route identity or adding routes.
  * Route generation and language switching require a separate future contract.
@@ -39,6 +53,29 @@ export function createI18nPlugin(options: I18nPluginOptions): FolioPlugin {
 
   return createFolioPlugin(() => ({
     name: "i18n",
+    pagesGenerated: (pages) => pages.map((page) => {
+      const sourceLocale = page.sourcePath?.split("/")[0];
+      if (sourceLocale && resolved.locales.includes(sourceLocale)) {
+        const url = routeFromLocaleDirectory(page, sourceLocale, resolved.defaultLocale);
+        return {
+          ...page,
+          slug: slugFromUrl(url),
+          url,
+          frontmatter: {
+            ...page.frontmatter,
+            [resolved.frontmatterKey]: sourceLocale,
+          },
+        };
+      }
+
+      const declaredLocale = page.frontmatter[resolved.frontmatterKey];
+      if (declaredLocale !== undefined && String(declaredLocale) !== resolved.defaultLocale) {
+        throw new Error(
+          `[folio:i18n] non-default locale "${String(declaredLocale)}" must be stored under a matching locale directory`,
+        );
+      }
+      return page;
+    }),
     pageTransformed: (page) => {
       const rawLocale = page.frontmatter[resolved.frontmatterKey];
       const locale = rawLocale === undefined

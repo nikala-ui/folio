@@ -30,11 +30,28 @@ locale: ka
 ---
 ```
 
+For real localized routes, store content in locale directories:
+
+```text
+docs/
+├── guide.mdx        # default locale, served at /guide
+└── ka/
+    └── guide.mdx    # served at /ka/guide
+```
+
+An explicitly prefixed default locale is also normalized:
+
+```text
+docs/en/guide.mdx    # served at /guide
+```
+
+Every generated route points to its actual MDX `filePath`, so the plugin does
+not duplicate untranslated source content.
+
 The plugin preserves `slug` and `url`, and writes the normalized locale back
 to the configured frontmatter key. An unsupported locale fails the page
 transformation with plugin metadata, so invalid translations cannot silently
 enter the build.
 
-This foundation does not create `/en/...` or `/ka/...` route copies and does
-not render a language switcher. Those features require a separately specified
-route-generation and navigation contract.
+The foundation does not render a language switcher yet. That requires a
+separately specified navigation contract.

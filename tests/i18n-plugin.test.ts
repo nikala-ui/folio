@@ -44,6 +44,31 @@ describe("i18n plugin", () => {
     expect(transformed.frontmatter.locale).toBe("ka");
   });
 
+  test("maps locale directories to real localized routes", async () => {
+    const lifecycle = manager();
+    const generated = await lifecycle.pagesGenerated([
+      { ...page, sourcePath: "en/guide/start.mdx", url: "/en/guide/start", slug: "en-guide-start" },
+      { ...page, sourcePath: "ka/guide/start.mdx", url: "/ka/guide/start", slug: "ka-guide-start" },
+    ]);
+
+    expect(generated.map((current) => [current.url, current.frontmatter.locale])).toEqual([
+      ["/guide/start", "en"],
+      ["/ka/guide/start", "ka"],
+    ]);
+  });
+
+  test("rejects a non-default locale without a locale directory", async () => {
+    const lifecycle = manager({ ...page.frontmatter, locale: "ka" });
+
+    await expect(lifecycle.pagesGenerated([{
+      ...page,
+      frontmatter: { ...page.frontmatter, locale: "ka" },
+    }])).rejects.toMatchObject({
+      pluginName: "i18n",
+      hook: "pagesGenerated",
+    });
+  });
+
   test("rejects unsupported locales", async () => {
     const lifecycle = manager({ ...page.frontmatter, locale: "fr" });
 
