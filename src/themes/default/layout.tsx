@@ -2,20 +2,16 @@
 import { createSignal, Show, splitProps, type ParentComponent } from "solid-js";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
-import { Container } from "@/components/ui/container";
 import { DocsNavbar } from "./navbar.jsx";
 import { DocsSidebar } from "./sidebar.jsx";
-import { DocsBreadcrumbs } from "./content/breadcrumbs.jsx";
-import { DocsPager } from "./content/pager.jsx";
-import { DocsTableOfContents } from "./content/table-of-contents.jsx";
-import { DocsMobileTableOfContents } from "./navigation/mobile-table-of-contents.jsx";
 import { DocsSearchDialog } from "./overlays/search-dialog.jsx";
 import { cn } from "@/lib/cn";
 import { getRepositorySourceUrl } from "../../navigation/repository-links.js";
 import { resolveSearchProvider } from "../../search/provider.js";
 import type { DocsLayoutProps } from "../types.js";
+import { DocsPageBody } from "./components/docs-page-body.jsx";
+import { DocsLandingBody } from "./components/docs-landing-body.jsx";
 import { PageHeader } from "./components/page-header.jsx";
-import { SidebarPromo } from "./components/sidebar-promo.jsx";
 import { createPageCopy } from "./hooks/use-page-copy.js";
 import {
   isLandingPage,
@@ -88,11 +84,15 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
 
   const content = () => (
     <SidebarInset class={cn("min-w-0", local.class)} {...rest}>
-      <Container as="main" size="2xl" class="min-w-0 w-full max-w-384 flex-1 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_16rem] items-start gap-4 sm:gap-8 py-6 sm:py-8">
-        <Container as="article" size="full" class="min-w-0 max-w-none mx-0 px-0 sm:px-4 w-full">
-          <Show when={local.breadcrumbs && local.breadcrumbs.length > 0}>
-            <DocsBreadcrumbs items={local.breadcrumbs!} class="mb-6" />
-          </Show>
+      <DocsPageBody
+        breadcrumbs={local.breadcrumbs}
+        currentPage={local.currentPage}
+        toc={local.toc}
+        prev={local.prev}
+        next={local.next}
+        showToc={showToc()}
+        sidebarPromo={sidebarPromo()}
+        pageActions={
           <Show when={local.currentPage?.title}>
             <PageHeader
               title={local.currentPage!.title}
@@ -109,48 +109,25 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
               onCopyMarkdown={pageCopy.copyMarkdown}
             />
           </Show>
-          <Show when={showToc()}>
-            <DocsMobileTableOfContents items={local.toc!} class="mb-6" />
-          </Show>
-          <Container as="div" size="full" class="prose prose-zinc dark:prose-invert max-w-none px-0 sm:px-0 lg:px-0" data-docs-page-content>
-            {local.children}
-          </Container>
-          <Show when={local.prev || local.next}>
-            <DocsPager prev={local.prev} next={local.next} />
-          </Show>
-        </Container>
-        <Show when={showToc() && local.currentPage?.url} keyed>
-          <Container as="aside" size="sm" class="hidden xl:block w-64 shrink-0 self-start px-0 sticky top-14 z-10 h-fit max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-background">
-            <div class="flex flex-col gap-5">
-              <DocsTableOfContents items={local.toc!} class="max-h-none" />
-              <Show when={sidebarPromo()}>
-                {(promo) => <SidebarPromo promo={promo()} />}
-              </Show>
-            </div>
-          </Container>
-        </Show>
-      </Container>
+        }
+      >
+        {local.children}
+      </DocsPageBody>
       <DocsSearchDialog open={searchOpen()} onOpenChange={setSearchOpen} pages={local.pages} provider={searchEnabled() ? searchProvider().implementation : undefined} />
     </SidebarInset>
   );
 
   const landingContent = () => (
     <SidebarInset class={cn("min-w-0", local.class)} {...rest}>
-      <Container as="main" size="2xl" class="min-w-0 max-w-full flex-1 py-8 sm:py-12 lg:py-16">
-        <Container as="article" size="xl" class="mx-auto min-w-0 px-0 sm:px-4">
-          <Show when={local.config.home?.showBreadcrumbs === true}>
-            <Show when={local.breadcrumbs && local.breadcrumbs.length > 0}>
-              <DocsBreadcrumbs items={local.breadcrumbs!} class="mb-6" />
-            </Show>
-          </Show>
-          <Container as="div" size="full" class="prose prose-zinc dark:prose-invert max-w-none px-0" data-docs-page-content>
-            {local.children}
-          </Container>
-          <Show when={local.config.home?.showPager === true && (local.prev || local.next)}>
-            <DocsPager prev={local.prev} next={local.next} />
-          </Show>
-        </Container>
-      </Container>
+      <DocsLandingBody
+        breadcrumbs={local.breadcrumbs}
+        showBreadcrumbs={local.config.home?.showBreadcrumbs === true}
+        showPager={local.config.home?.showPager === true}
+        prev={local.prev}
+        next={local.next}
+      >
+        {local.children}
+      </DocsLandingBody>
       <DocsSearchDialog open={searchOpen()} onOpenChange={setSearchOpen} pages={local.pages} provider={searchEnabled() ? searchProvider().implementation : undefined} />
     </SidebarInset>
   );
