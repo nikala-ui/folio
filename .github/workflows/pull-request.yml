@@ -36,11 +36,11 @@ jobs:
       - name: TypeScript check
         run: bun run typecheck
 
-      - name: Unit and integration tests
-        run: bun run test
-
       - name: Production engine build
         run: bun run build
+
+      - name: Unit and integration tests
+        run: bun run test
 
       - name: Self-hosted docs build
         run: bun run docs:build
