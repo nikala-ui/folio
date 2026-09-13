@@ -66,7 +66,7 @@
     "docs:build": "bun run build && bun dist/cli/index.js build -o .docs-dist",
     "docs:preview": "bun run build && bun dist/cli/index.js build -o .docs-dist && bun dist/cli/index.js preview -o .docs-dist",
     "index:search": "bun scripts/index-search.ts",
-    "check": "bun run typecheck && bun run test && bun run build && bun run docs:build",
+    "check": "bun run typecheck && bun run build && bun run test && bun run docs:build",
     "dev": "tsc -p tsconfig.build.json --watch"
   },
   "dependencies": {
