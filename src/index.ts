@@ -24,7 +24,7 @@ export type {
   FolioPluginHookMetadata,
   FolioPluginLifecycleOptions,
 } from "./core/plugin/index.js";
-export type { SearchAdapter, SearchContext } from "./search/provider.js";
+export type { SearchAdapter, SearchAdapterRuntime, SearchContext } from "./search/provider.js";
 export * from "./navigation/index.js";
 export * from "./config.js";
 export * from "./core/content-scanner.js";

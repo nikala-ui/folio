@@ -66,6 +66,13 @@ describe("docs config", () => {
     expect(await searchPages(resolved, "anything", [{ title: "One" }] as never[])).toHaveLength(1);
   });
 
+  test("falls back when a serialized adapter has no executable search method", () => {
+    const resolved = resolveSearchProvider({ provider: { name: "remote" } as never });
+
+    expect(resolved.active).toBe("local");
+    expect(resolved.fallback).toBe(true);
+  });
+
   test("validates plugins loaded from a direct docs.config.ts export", async () => {
     await withConfig("export default { plugins: [{ name: '   ' }] };", async (root) => {
       await assert.rejects(resolveDocsConfig(root), /Plugin at index 0 must have a non-empty name/);

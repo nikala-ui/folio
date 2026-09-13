@@ -87,12 +87,36 @@ export interface SearchAdapter {
   search: (
     context: SearchContext,
   ) => PageData[] | Promise<PageData[]>;
+  runtime?: {
+    module: string;
+    exportName: string;
+    options?: unknown;
+  };
 }
 ```
 
 The `search` method may be synchronous for an in-memory index or asynchronous
 for a remote provider. It must always return Folio `PageData` objects, not
 provider-specific hits.
+
+## Browser runtime descriptor
+
+An adapter that performs remote browser searches must provide a serializable
+`runtime` descriptor. Folio uses it to import the browser-safe factory without
+importing the consumer's complete `docs.config.ts` into the browser bundle:
+
+```ts
+export const providerRuntime = {
+  module: "provider-package",
+  exportName: "createProviderBrowserAdapter",
+  options: { indexName: "docs" },
+};
+```
+
+The module must export a factory that accepts the optional `options` value and
+returns a complete `SearchAdapter`. Keep server-only indexing clients and
+administrative credentials outside that module. The descriptor is a generic
+engine contract; Folio does not contain provider-specific branches.
 
 ## Factory and provider options
 

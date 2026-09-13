@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import { scanContentDirectories } from "../../core/content-scanner.js";
 import { buildConfiguredSidebarTree, buildSidebarTree } from "../../core/route-tree.js";
 import type { DocsConfig, PageData } from "../../types.js";
+import type { SearchAdapterRuntime } from "../../search/provider.js";
 import { serializeModuleValue } from "../module-serialization.js";
 import type { FolioBuildSession } from "./lifecycle.js";
 import { collectComponentExports, collectStaticComponentFiles, getComponentSourceDir, toLucideComponentName } from "./components.js";
@@ -22,6 +23,27 @@ export interface VirtualModuleState {
   isSsrBuild: boolean;
 }
 
+function getSearchAdapterRuntime(
+  provider: NonNullable<DocsConfig["search"]>["provider"],
+): SearchAdapterRuntime | undefined {
+  if (!provider || typeof provider !== "object" || !provider.runtime) return undefined;
+  if (typeof provider.runtime !== "object" || Array.isArray(provider.runtime)) {
+    throw new Error("[folio] Search adapter runtime must be an object");
+  }
+  const runtime = provider.runtime as Partial<SearchAdapterRuntime>;
+  if (typeof runtime.module !== "string" || typeof runtime.exportName !== "string") {
+    throw new Error("[folio] Search adapter runtime requires module and exportName");
+  }
+  if (!runtime.module.trim() || !runtime.exportName.trim()) {
+    throw new Error("[folio] Search adapter runtime requires module and exportName");
+  }
+  return {
+    module: runtime.module,
+    exportName: runtime.exportName,
+    options: runtime.options,
+  };
+}
+
 export function createVirtualModuleLoader(state: () => VirtualModuleState, moduleDir: string) {
   return async function load(id: string): Promise<string | null> {
     const current = state();
@@ -33,7 +55,20 @@ export const bundledThemes = {};
 export default { createHighlighter, bundledLanguages, bundledThemes };
 `;
     if (id === RESOLVED_CONFIG_ID) {
-      return `export default ${serializeModuleValue(resolvedConfig)};`;
+      const serializedConfig = serializeModuleValue(resolvedConfig);
+      const runtime = getSearchAdapterRuntime(resolvedConfig.search?.provider);
+      if (!runtime) return `export default ${serializedConfig};`;
+      return `import * as searchRuntime from ${serializeModuleValue(runtime.module)};
+const config = ${serializedConfig};
+const provider = config.search?.provider;
+const createAdapter = searchRuntime[${serializeModuleValue(runtime.exportName)}];
+if (provider?.runtime) {
+  if (typeof createAdapter !== "function") {
+    throw new Error(${serializeModuleValue(`[folio] Search adapter runtime export "${runtime.exportName}" was not found in "${runtime.module}"`)});
+  }
+  config.search = { ...config.search, provider: createAdapter(provider.runtime.options) };
+}
+export default config;`;
     }
     if (id === RESOLVED_TREE_ID) {
       const pages = [...await lifecycleSession!.pages()];
