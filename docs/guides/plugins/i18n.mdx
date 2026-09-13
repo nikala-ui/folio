@@ -1,0 +1,75 @@
+---
+title: i18n plugin
+description: Localize documentation content and the global documentation interface.
+icon: languages
+order: 3
+---
+
+Folio's i18n foundation plugin validates and normalizes a page's locale
+metadata. It reads a locale from frontmatter and applies the configured
+default when a page does not declare one.
+
+```ts
+import { createI18nPlugin } from "@/plugins/i18n";
+
+export default {
+  plugins: [
+    createI18nPlugin({
+      defaultLocale: "en",
+      locales: ["en", "ka"],
+      translations: { directory: "locales" },
+    }),
+  ],
+};
+```
+
+Declare an explicit locale when a page differs from the default:
+
+```md
+---
+title: საწყისი გვერდი
+locale: ka
+---
+```
+
+For real localized routes, store content in locale directories:
+
+```text
+docs/
+├── guide.mdx        # default locale, served at /guide
+└── ka/
+    └── guide.mdx    # served at /ka/guide
+```
+
+An explicitly prefixed default locale is also normalized:
+
+```text
+docs/en/guide.mdx    # served at /guide
+```
+
+Every generated route points to its actual MDX `filePath`, so the plugin does
+not duplicate untranslated source content.
+
+The plugin preserves `slug` and `url`, and writes the normalized locale back
+to the configured frontmatter key. An unsupported locale fails the page
+transformation with plugin metadata, so invalid translations cannot silently
+enter the build.
+
+The plugin also loads global interface translations from JSON files under the
+configured directory:
+
+```text
+locales/
+├── en.json
+└── ka.json
+```
+
+The default theme renders the language switcher in the navbar. It changes the
+site interface and navigates to the matching content page when that page
+exists. If the current page has no translation for the selected locale, that
+locale is disabled for the current page and the interface remains in the
+page's available locale. The locale segment is hidden from sidebar categories
+and breadcrumbs.
+
+Unknown translation keys fail configuration loading. Missing keys and missing
+locale files fall back to the configured default locale.

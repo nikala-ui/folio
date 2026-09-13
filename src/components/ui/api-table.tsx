@@ -15,6 +15,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 
 export interface ApiTableItem {
   /** Property, attribute, or method name */
@@ -45,6 +46,7 @@ export interface ApiTableProps extends JSX.HTMLAttributes<HTMLDivElement> {
  * Clean, structured API reference table component composed from Table and Badge primitives.
  */
 export const ApiTable: Component<ApiTableProps> = (props) => {
+  const siteLocale = useSiteLocale();
   const [local, rest] = splitProps(props, [
     "title",
     "description",
@@ -70,10 +72,10 @@ export const ApiTable: Component<ApiTableProps> = (props) => {
         <Table class="text-xs">
           <TableHeader class="bg-muted/40 font-mono text-[11px] uppercase tracking-wider text-muted-foreground select-none">
             <TableRow class="hover:bg-transparent">
-              <TableHead class="h-9 px-4 font-semibold">Prop</TableHead>
-              <TableHead class="h-9 px-4 font-semibold">Type</TableHead>
-              <TableHead class="h-9 px-4 font-semibold">Default</TableHead>
-              <TableHead class="h-9 px-4 font-semibold">Description</TableHead>
+              <TableHead class="h-9 px-4 font-semibold">{siteLocale.t("apiTable.property")}</TableHead>
+              <TableHead class="h-9 px-4 font-semibold">{siteLocale.t("apiTable.type")}</TableHead>
+              <TableHead class="h-9 px-4 font-semibold">{siteLocale.t("apiTable.default")}</TableHead>
+              <TableHead class="h-9 px-4 font-semibold">{siteLocale.t("apiTable.description")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody class="font-mono text-xs">

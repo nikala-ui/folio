@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { createClipboard } from "@/hooks/create-clipboard";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 import { cn } from "@/lib/cn";
 
 export type CodeBlockPackageManager = "bunx" | "npx" | "pnpm" | "yarn";
@@ -151,6 +152,7 @@ function escapeHtml(str: string): string {
 }
 
 export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
+  const siteLocale = useSiteLocale();
   const [local, rest] = splitProps(props, [
     "id",
     "code",
@@ -288,7 +290,7 @@ export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
                 variant="ghost"
                 size="icon"
                 onClick={handleCopy}
-                aria-label={clipboard.copied() ? "Copied code" : "Copy code"}
+                aria-label={clipboard.copied() ? siteLocale.t("code.copied") : siteLocale.t("code.copy")}
                 class="size-6 p-0 rounded-xs text-muted-foreground hover:bg-background hover:text-foreground cursor-pointer"
               >
                 <Show when={clipboard.copied()} fallback={<Copy class="size-3.5" />}>
@@ -296,7 +298,7 @@ export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
                 </Show>
               </TooltipTrigger>
               <TooltipContent class="text-[10px] py-1 px-2">
-                {clipboard.copied() ? "Copied!" : "Copy code"}
+                {clipboard.copied() ? siteLocale.t("actions.copied") : siteLocale.t("code.copy")}
               </TooltipContent>
             </Tooltip>
           </Show>
@@ -312,7 +314,7 @@ export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
               variant="outline"
               size="icon"
               onClick={handleCopy}
-              aria-label={clipboard.copied() ? "Copied code" : "Copy code"}
+                aria-label={clipboard.copied() ? siteLocale.t("code.copied") : siteLocale.t("code.copy")}
               class="size-7 rounded-md border-border/80 bg-background/90 text-muted-foreground backdrop-blur-xs hover:bg-muted hover:text-foreground cursor-pointer shadow-2xs"
             >
               <Show when={clipboard.copied()} fallback={<Copy class="size-3.5" />}>
@@ -320,7 +322,7 @@ export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
               </Show>
             </TooltipTrigger>
             <TooltipContent class="text-[10px] py-1 px-2">
-              {clipboard.copied() ? "Copied!" : "Copy code"}
+                {clipboard.copied() ? siteLocale.t("actions.copied") : siteLocale.t("code.copy")}
             </TooltipContent>
           </Tooltip>
         </div>

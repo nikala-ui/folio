@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { ChevronRight, Folder } from "lucide-solid";
 import type { SidebarItem } from "../../../types.js";
+import type { PageData } from "../../../types.js";
+import { localizeSidebarTree } from "../../../plugins/i18n/navigation.js";
+import { useSiteLocale } from "../../../plugins/i18n/runtime.jsx";
 import { resolveDefaultIcon } from "../icons.js";
 import {
   containsActiveSidebarItem,
@@ -27,11 +30,19 @@ import {
 
 export interface SidebarTreeProps {
   tree: SidebarItem[];
+  pages?: readonly PageData[];
   currentUrl?: string;
 }
 
 export const SidebarTree: Component<SidebarTreeProps> = (props) => {
   const sidebar = useSidebar();
+  const siteLocale = useSiteLocale();
+  const activeLocale = () => {
+    const currentPage = props.pages?.find((page) => page.url === props.currentUrl);
+    const pageLocale = currentPage?.frontmatter.locale;
+    return typeof pageLocale === "string" ? pageLocale : siteLocale.locale();
+  };
+  const localizedTree = () => localizeSidebarTree(props.tree, props.pages || [], activeLocale());
 
   const renderCategoryIcon = (name: string | undefined): JSX.Element => (
     <Show when={renderIcon(name, "size-4 shrink-0")} fallback={<Folder class="size-4 shrink-0" />}>
@@ -184,8 +195,8 @@ export const SidebarTree: Component<SidebarTreeProps> = (props) => {
 
   return (
     <>
-      <For each={props.tree.filter((item) => !item.items)}>{(item) => renderRootPage(item)}</For>
-      <For each={props.tree.filter((item) => Boolean(item.items))}>{(group) => renderCategory(group)}</For>
+      <For each={localizedTree().filter((item) => !item.items)}>{(item) => renderRootPage(item)}</For>
+      <For each={localizedTree().filter((item) => Boolean(item.items))}>{(group) => renderCategory(group)}</For>
     </>
   );
 };

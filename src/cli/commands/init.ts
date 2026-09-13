@@ -180,6 +180,25 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
   return { componentFiles, hookFiles, dependencies: [...dependencies].sort() };
 }
 
+async function copyPluginSources(root: string): Promise<void> {
+  const commandDir = path.dirname(fileURLToPath(import.meta.url));
+  const sourceCandidates = [
+    path.resolve(commandDir, "../../../src/plugins"),
+    path.resolve(commandDir, "../../plugins"),
+  ];
+  const source = sourceCandidates.find((candidate) => fs.existsSync(candidate));
+  if (!source) throw new Error("Folio plugin sources are missing from the package");
+
+  for (const sourceFile of await listSourceFiles(source)) {
+    const relative = path.relative(source, sourceFile);
+    const destination = path.join(root, "src/plugins", relative);
+    const content = (await fs.readFile(sourceFile, "utf-8"))
+      .replace(/from "(?:\.\.\/)+plugin\.js"/g, 'from "@nikala-ui/folio"')
+      .replace(/from "(?:\.\.\/)+types\.js"/g, 'from "@nikala-ui/folio"');
+    await fs.outputFile(destination, content, "utf-8");
+  }
+}
+
 async function copyCustomTheme(root: string): Promise<void> {
   const commandDir = path.dirname(fileURLToPath(import.meta.url));
   const sourceCandidates = [path.resolve(commandDir, "../../../src/themes/default"), path.resolve(commandDir, "../../themes/default")];
@@ -331,7 +350,7 @@ async function writeProjectFiles(root: string, registryDependencies: string[]): 
   };
   await fs.writeJson(packagePath, packageJson, { spaces: 2 });
   await fs.outputFile(path.join(root, "tsconfig.json"), JSON.stringify({
-    compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "preserve", jsxImportSource: "solid-js", strict: true, skipLibCheck: true, paths: { "@/*": ["./src/*"], "@/components/ui/*": ["./src/components/ui/*"], "@/hooks/*": ["./src/hooks/*"] } },
+    compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "preserve", jsxImportSource: "solid-js", strict: true, skipLibCheck: true, paths: { "@/*": ["./src/*"], "@/components/*": ["./src/components/*"], "@/components/ui/*": ["./src/components/ui/*"], "@/hooks/*": ["./src/hooks/*"], "@/plugins/*": ["./src/plugins/*"] } },
     include: ["src/**/*", "docs.config.ts"],
   }, null, 2) + "\n", "utf-8");
 }
@@ -361,13 +380,14 @@ Your Nikala UI components and reactive hooks are owned locally in **src/componen
 </Callout>
   `, "utf-8");
   await copyCustomTheme(root);
+  await copyPluginSources(root);
   await copyDefaultAssets(root);
   const copied = await copyRegistrySource(root);
   await writeProjectFiles(root, copied.dependencies);
   installProjectDependencies(root);
   console.log(`  ${pc.green("✓")} Copied ${copied.componentFiles.length} UI sources and ${copied.hookFiles.length} hook sources`);
   console.log(`  ${pc.green("✓")} Registered ${copied.dependencies.length} component dependencies`);
-  console.log(`  ${pc.green("✓")} Created ${pc.cyan("docs")}, ${pc.cyan("src/themes/default")}, and local Tailwind tokens`);
+  console.log(`  ${pc.green("✓")} Created ${pc.cyan("docs")}, ${pc.cyan("src/plugins")}, ${pc.cyan("src/themes/default")}, and local Tailwind tokens`);
   console.log();
   console.log(`  ${pc.bold(pc.green("Success!"))} Run ${pc.cyan("bunx @nikala-ui/folio dev")} to start your docs.`);
   console.log();

@@ -12,7 +12,7 @@ body:
     id: version
     attributes:
       label: Package version
-      placeholder: "0.14.0"
+      placeholder: "0.15.0"
     validations:
       required: true
   - type: input

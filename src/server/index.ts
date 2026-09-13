@@ -8,11 +8,12 @@ import solidPlugin from "vite-plugin-solid";
 import tailwindcss from "@tailwindcss/vite";
 import fs from "fs-extra";
 import matter from "gray-matter";
-import { nikalaDocsPlugin } from "./plugin.js";
-import type { DocsConfig } from "../types.js";
-import { loadConfig } from "../config.js";
+import { nikalaDocsPlugin } from "./plugin/index.js";
+import type { DocsConfig, PageData } from "../types.js";
+import { loadConfig, resolvePluginConfig } from "../config.js";
 import { scanContent } from "../core/content-scanner.js";
 import { getPageLastModified, isPageIndexable, renderSeoMetadata } from "./seo.js";
+import { createFolioBuildSession, type FolioBuildSession } from "./plugin/lifecycle.js";
 
 export interface DocsServerOptions {
   root?: string;
@@ -22,6 +23,8 @@ export interface DocsServerOptions {
   open?: boolean;
   config?: DocsConfig;
   outDir?: string;
+  /** Shared plugin lifecycle for one production build. */
+  lifecycleSession?: FolioBuildSession;
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -134,6 +137,7 @@ function getSharedConfig(options: DocsServerOptions, isDev = false, isSSR = fals
   const localHooks = path.join(localSrc, "hooks");
   const localLib = path.join(localSrc, "lib");
   const localProviders = path.join(localSrc, "providers");
+  const localPlugins = path.join(localSrc, "plugins");
   const componentsSrc = fs.existsSync(localComponents) ? localComponents : path.join(docsSrc, "components/ui");
   const hooksSource = fs.existsSync(localHooks) ? localHooks : path.join(docsSrc, "hooks");
   const libSource = fs.existsSync(localLib) ? localLib : path.join(docsSrc, "lib");
@@ -156,6 +160,8 @@ function getSharedConfig(options: DocsServerOptions, isDev = false, isSSR = fals
   aliases.push(
     { find: "@/lib", replacement: libSource },
     { find: "@/providers", replacement: providersSource },
+    ...(fs.existsSync(localPlugins) ? [{ find: /^@\/plugins\/(.*)$/, replacement: path.join(localPlugins, "$1") }] : []),
+    { find: /^@\/components\/(.*)$/, replacement: path.join(path.dirname(componentsSrc), "$1") },
     { find: /^@\/components\/ui\/(.*)$/, replacement: path.join(componentsSrc, "$1") },
     { find: /^@\/hooks\/(.*)$/, replacement: path.join(hooksSource, "$1") },
   );
@@ -186,6 +192,7 @@ function getSharedConfig(options: DocsServerOptions, isDev = false, isSSR = fals
         docsDir: options.docsDir ? path.resolve(root, options.docsDir) : undefined,
         configRoot: root,
         config: options.config,
+        lifecycleSession: options.lifecycleSession,
       }),
       tailwindcss(),
       solidPlugin({
@@ -393,11 +400,14 @@ async function renderWithTimeout(renderer: SsrRenderer, url: string): Promise<st
   ]);
 }
 
-async function prerenderDocs(options: DocsServerOptions, outDir: string, template: string): Promise<void> {
+async function prerenderDocs(
+  options: DocsServerOptions,
+  outDir: string,
+  template: string,
+  pages: readonly PageData[],
+): Promise<void> {
   const root = options.root ? path.resolve(process.cwd(), options.root) : process.cwd();
-  const config = options.config || await loadConfig(root);
-  const contentDir = path.resolve(root, options.docsDir || config.contentDir || "docs");
-  const pages = await scanContent(contentDir);
+  const config = options.config ? resolvePluginConfig(options.config) : await loadConfig(root);
   if (!pages.length) return;
   const renderer = await createSsrRenderer(options);
 
@@ -500,19 +510,49 @@ export async function createDocsServer(options: DocsServerOptions = {}): Promise
 export async function buildDocs(options: DocsServerOptions = {}): Promise<void> {
   const root = options.root ? path.resolve(process.cwd(), options.root) : process.cwd();
   const outDir = options.outDir ? path.resolve(root, options.outDir) : path.resolve(root, "dist");
-  const shared = getSharedConfig(options, false);
-
-  await build({
-    ...shared,
-    build: {
-      outDir,
-      emptyOutDir: true,
-    },
+  const config = options.config ? resolvePluginConfig(options.config) : await loadConfig(root);
+  const contentDir = path.resolve(root, options.docsDir || config.contentDir || "docs");
+  const lifecycleSession = options.lifecycleSession || createFolioBuildSession({
+    plugins: config.plugins,
+    config,
+    rootDir: root,
+    contentDir,
+    outputDir: outDir,
+    mode: "production",
   });
+  const buildOptions = { ...options, config, lifecycleSession };
+  let lifecycleEnded = false;
 
-  const templatePath = path.join(outDir, "index.html");
-  const template = await fs.readFile(templatePath, "utf-8");
-  await prerenderDocs(options, outDir, template);
+  try {
+    await build({
+      ...getSharedConfig(buildOptions, false),
+      build: {
+        outDir,
+        emptyOutDir: true,
+      },
+    });
+
+    const templatePath = path.join(outDir, "index.html");
+    const template = await fs.readFile(templatePath, "utf-8");
+    const pages = await lifecycleSession.pages();
+    await prerenderDocs(buildOptions, outDir, template, pages);
+    await lifecycleSession.generate();
+    lifecycleEnded = true;
+    await lifecycleSession.buildEnd({ success: true, outputDir: outDir, pages });
+  } catch (error) {
+    if (lifecycleEnded) throw error;
+    try {
+      lifecycleEnded = true;
+      await lifecycleSession.buildEnd({
+        success: false,
+        outputDir: outDir,
+        pages: lifecycleSession.getPages(),
+      });
+    } catch (lifecycleError) {
+      throw lifecycleError;
+    }
+    throw lifecycleSession.getFailure() ?? error;
+  }
 }
 
 function contentType(filePath: string): string {
@@ -540,7 +580,7 @@ function addHydrationScript(template: string, hydrationScript?: string): string 
 export async function createDocsRequestHandler(options: DocsServerOptions = {}): Promise<(request: Request) => Promise<Response>> {
   const root = options.root ? path.resolve(process.cwd(), options.root) : process.cwd();
   const outDir = options.outDir ? path.resolve(root, options.outDir) : path.resolve(root, "dist");
-  const config = options.config || await loadConfig(root);
+  const config = options.config ? resolvePluginConfig(options.config) : await loadConfig(root);
   const contentDir = path.resolve(root, options.docsDir || config.contentDir || "docs");
   const pages = await scanContent(contentDir);
   const template = await fs.readFile(path.join(outDir, "index.html"), "utf-8");
@@ -631,4 +671,4 @@ async function listenWithFallback(server: ReturnType<typeof createHttpServer>, s
   throw new Error(`No available port found from ${startPort}`);
 }
 
-export * from "./plugin.js";
+export * from "./plugin/index.js";

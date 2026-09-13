@@ -2,10 +2,12 @@
 import { createSignal, onMount, Show, splitProps, type Component } from "solid-js";
 import { TableOfContents as CoreTableOfContents } from "@/components/ui/table-of-contents";
 import type { DocsTableOfContentsProps } from "../../types.js";
+import { useSiteLocale } from "../../../plugins/i18n/runtime.jsx";
 
 export const DocsTableOfContents: Component<DocsTableOfContentsProps> = (props) => {
   const [local, rest] = splitProps(props, ["items", "title", "class"]);
   const [ready, setReady] = createSignal(false);
+  const siteLocale = useSiteLocale();
 
   onMount(() => {
     if (typeof window === "undefined") {
@@ -21,7 +23,7 @@ export const DocsTableOfContents: Component<DocsTableOfContentsProps> = (props) 
     <Show when={ready()}>
       <CoreTableOfContents
         items={local.items}
-        title={local.title ?? "On this page"}
+        title={local.title ?? siteLocale.t("tableOfContents.title")}
         class={local.class}
         {...rest}
       />

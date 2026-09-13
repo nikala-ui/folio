@@ -1,6 +1,8 @@
 // packages/docs/src/types.ts
 
 import type { Component } from "solid-js";
+import type { FolioPluginConfig } from "./plugin.js";
+import type { DocsUiLocaleConfig } from "./plugins/i18n/site-locale.js";
 
 export type DocsIcon = Component<{
   class?: string;
@@ -29,6 +31,15 @@ export interface TocItem {
   depth: number;
 }
 
+export interface DocsPageAction {
+  /** Accessible text rendered inside the page action link. */
+  label: string;
+  /** Destination opened when the visitor activates the action. */
+  href: string;
+  /** Open external destinations in a new tab with safe link attributes. */
+  external?: boolean;
+}
+
 export interface PageData {
   slug: string;
   url: string;
@@ -38,6 +49,7 @@ export interface PageData {
   toc: TocItem[];
   title: string;
   description?: string;
+  pageActions?: DocsPageAction[];
 }
 
 export interface SidebarItem {
@@ -161,4 +173,8 @@ export interface DocsConfig {
     /** A provider name or a configured adapter instance. */
     provider?: string | import("./search/provider.js").SearchAdapter;
   };
+  /** Resolved JSON-backed translations for the documentation interface. */
+  uiLocale?: DocsUiLocaleConfig;
+  /** Build-time extensions created by Folio plugin factories. */
+  plugins?: FolioPluginConfig;
 }

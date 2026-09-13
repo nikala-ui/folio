@@ -13,6 +13,7 @@ import { createKeybindings } from "@/hooks/create-keybindings";
 import { Dialog } from "@kobalte/core/dialog";
 import { Search, ArrowUp, ArrowDown, CornerDownLeft } from "lucide-solid";
 import { cn } from "@/lib/cn";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 import { Kbd, KbdGroup } from "../ui/kbd";
 import { InputGroup, InputGroupInput, InputGroupAddon } from "../ui/input-group";
 import { List, ListGroup, ListHeader, ListItem, type ListItemProps } from "../ui/list";
@@ -193,6 +194,7 @@ export interface CommandInputProps
 export const CommandInput: Component<CommandInputProps> = (props) => {
   const [local, rest] = splitProps(props, ["class", "value", "onInput"]);
   const { search, setSearch } = useCommand();
+  const siteLocale = useSiteLocale();
 
   return (
     <InputGroup class="border-0 border-b border-border rounded-none bg-transparent px-3 py-1 shadow-none focus-within:ring-0 focus-within:border-border">
@@ -208,7 +210,7 @@ export const CommandInput: Component<CommandInputProps> = (props) => {
             local.onInput(e);
           }
         }}
-        placeholder="Type a command or search..."
+        placeholder={siteLocale.t("search.commandPlaceholder")}
         class="h-11 text-base sm:text-sm font-medium"
         {...rest}
       />
@@ -242,6 +244,7 @@ export interface CommandEmptyProps extends JSX.HTMLAttributes<HTMLDivElement> {
 export const CommandEmpty: Component<CommandEmptyProps> = (props) => {
   const [local, rest] = splitProps(props, ["class", "children"]);
   const { search } = useCommand();
+  const siteLocale = useSiteLocale();
 
   return (
     <Show when={search().trim().length > 0}>
@@ -252,7 +255,7 @@ export const CommandEmpty: Component<CommandEmptyProps> = (props) => {
         )}
         {...rest}
       >
-        {local.children || `No results found for "${search()}".`}
+        {local.children || siteLocale.t("search.noResults", { query: search() })}
       </div>
     </Show>
   );
@@ -347,6 +350,7 @@ export interface CommandFooterProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 export const CommandFooter: Component<CommandFooterProps> = (props) => {
   const [local, rest] = splitProps(props, ["class", "children"]);
+  const siteLocale = useSiteLocale();
 
   return (
     <div
@@ -362,17 +366,17 @@ export const CommandFooter: Component<CommandFooterProps> = (props) => {
             <Kbd size="sm"><ArrowUp class="w-2.5 h-2.5" /></Kbd>
             <Kbd size="sm"><ArrowDown class="w-2.5 h-2.5" /></Kbd>
           </KbdGroup>
-          <span>Navigate</span>
+          <span>{siteLocale.t("command.navigate")}</span>
         </span>
 
         <span class="flex items-center gap-1">
           <Kbd size="sm"><CornerDownLeft class="w-2.5 h-2.5" /></Kbd>
-          <span>Select</span>
+          <span>{siteLocale.t("command.select")}</span>
         </span>
 
         <span class="flex items-center gap-1">
           <Kbd size="sm">Esc</Kbd>
-          <span>Close</span>
+          <span>{siteLocale.t("command.close")}</span>
         </span>
       </div>
 

@@ -14,10 +14,12 @@ import { createLockScroll } from "@/hooks/create-lock-scroll";
 import { cn } from "@/lib/cn";
 import type { DocsSidebarProps } from "../types.js";
 import { SidebarTree } from "./navigation/sidebar-tree.jsx";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 
 export const DocsSidebar: Component<DocsSidebarProps> = (props) => {
-  const [local, rest] = splitProps(props, ["tree", "nav", "currentUrl", "title", "logo", "headerSubtitle", "footerText", "showHeader", "showFooter", "class"]);
+  const [local, rest] = splitProps(props, ["tree", "pages", "nav", "currentUrl", "title", "logo", "headerSubtitle", "footerText", "showHeader", "showFooter", "class"]);
   const brandText = () => local.logo?.text || local.title || "Folio";
+  const siteLocale = useSiteLocale();
   const sidebar = useSidebar();
   const [sidebarElement, setSidebarElement] = createSignal<HTMLDivElement>();
 
@@ -45,7 +47,7 @@ export const DocsSidebar: Component<DocsSidebarProps> = (props) => {
       <Show when={sidebar.isMobile() && sidebar.openMobile()}>
         <button
           type="button"
-          aria-label="Close documentation sidebar"
+          aria-label={siteLocale.t("navigation.closeSidebar")}
           class="fixed inset-0 z-40 cursor-default bg-black/50 md:hidden"
           onClick={() => sidebar.setOpenMobile(false)}
         />
@@ -87,7 +89,7 @@ export const DocsSidebar: Component<DocsSidebarProps> = (props) => {
 
       <SidebarContent class="h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Show when={local.nav?.length}>
-          <nav aria-label="Primary navigation" class="border-b border-border/60 px-2 py-2 md:hidden">
+          <nav aria-label={siteLocale.t("navigation.primary")} class="border-b border-border/60 px-2 py-2 md:hidden">
             <For each={local.nav}>
               {(item) => (
                 <a
@@ -103,7 +105,7 @@ export const DocsSidebar: Component<DocsSidebarProps> = (props) => {
             </For>
           </nav>
         </Show>
-        <SidebarTree tree={local.tree} currentUrl={local.currentUrl} />
+        <SidebarTree tree={local.tree} pages={local.pages} currentUrl={local.currentUrl} />
       </SidebarContent>
 
       <Show when={local.showFooter !== false}>
