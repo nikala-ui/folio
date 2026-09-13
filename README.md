@@ -196,7 +196,7 @@ reloads, generated projects, and the browser/SSR validation suite. See the
 hook contracts, immutable inputs, error handling, and compatibility policy.
 
 The API is pre-1.0 and therefore follows a compatible-minor policy: plugin
-packages should pin a compatible Folio minor range such as `~0.14.0`. The
+packages should pin a compatible Folio minor range such as `~0.15.0`. The
 current contract supports page metadata transformation while preserving route
 identity; adding routes or replacing source MDX requires a separately defined
 future API. This release adds no breaking plugin contract change and requires
