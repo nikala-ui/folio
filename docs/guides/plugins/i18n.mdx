@@ -1,0 +1,40 @@
+---
+title: i18n plugin foundation
+description: Normalize supported locale metadata without changing documentation routes.
+order: 3
+---
+
+Folio's i18n foundation plugin validates and normalizes a page's locale
+metadata. It reads a locale from frontmatter and applies the configured
+default when a page does not declare one.
+
+```ts
+import { createI18nPlugin } from "./src/plugins/i18n/index.js";
+
+export default {
+  plugins: [
+    createI18nPlugin({
+      defaultLocale: "en",
+      locales: ["en", "ka"],
+    }),
+  ],
+};
+```
+
+Declare an explicit locale when a page differs from the default:
+
+```md
+---
+title: საწყისი გვერდი
+locale: ka
+---
+```
+
+The plugin preserves `slug` and `url`, and writes the normalized locale back
+to the configured frontmatter key. An unsupported locale fails the page
+transformation with plugin metadata, so invalid translations cannot silently
+enter the build.
+
+This foundation does not create `/en/...` or `/ka/...` route copies and does
+not render a language switcher. Those features require a separately specified
+route-generation and navigation contract.
