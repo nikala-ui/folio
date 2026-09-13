@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import { defineDocsConfig, resolveDocsConfig } from "../src/config.js";
 import { buildDocs } from "../src/server/index.js";
 import { resolveDefaultThemeMode } from "../src/theme-mode.js";
 import { resolveSearchProvider, searchPages } from "../src/search/provider.js";
+import { getSiteTranslation } from "../src/plugins/i18n/site-locale.js";
 
 async function withConfig(source: string, callback: (root: string) => Promise<void>) {
   const root = await mkdtemp(path.join(os.tmpdir(), "folio-config-validation-"));
@@ -98,6 +99,31 @@ describe("docs config", () => {
       expect(config.title).toBe("Consumer Docs");
       expect(config.contentDir).toBe("docs");
       expect(config.plugins).toBeUndefined();
+    });
+  });
+
+  test("loads JSON site translations and falls back to the default locale", async () => {
+    await withConfig("export default { uiLocale: { defaultLocale: 'en' } };", async (root) => {
+      await mkdir(path.join(root, "locales"));
+      await writeFile(path.join(root, "locales/en.json"), JSON.stringify({
+        "navigation.search": "Search",
+        "actions.copyPage": "Copy page",
+      }));
+      await writeFile(path.join(root, "locales/ka.json"), JSON.stringify({ "navigation.search": "ძიება" }));
+
+      const config = await resolveDocsConfig(root);
+      expect(config.uiLocale?.defaultLocale).toBe("en");
+      expect(getSiteTranslation({ ...config.uiLocale, locale: "ka" }, "navigation.search")).toBe("ძიება");
+      expect(getSiteTranslation({ ...config.uiLocale, locale: "fr" }, "navigation.search")).toBe("Search");
+      expect(getSiteTranslation({ ...config.uiLocale, locale: "ka" }, "actions.copyPage")).toBe("Copy page");
+    });
+  });
+
+  test("rejects unknown JSON site translation keys", async () => {
+    await withConfig("export default {};", async (root) => {
+      await mkdir(path.join(root, "locales"));
+      await writeFile(path.join(root, "locales/en.json"), JSON.stringify({ "navigation.typo": "invalid" }));
+      await assert.rejects(resolveDocsConfig(root), /Unknown site translation key/);
     });
   });
 

@@ -1,5 +1,7 @@
 import { createFolioPlugin, type FolioPlugin } from "../../plugin.js";
 
+export * from "./site-locale.js";
+
 export interface I18nPluginOptions {
   defaultLocale: string;
   locales: readonly string[];
@@ -44,10 +46,6 @@ function slugFromUrl(url: string): string {
   return url === "/" ? "index" : url.slice(1).replace(/\//g, "-");
 }
 
-/**
- * Normalizes page locale metadata without changing route identity or adding routes.
- * Route generation and language switching require a separate future contract.
- */
 export function createI18nPlugin(options: I18nPluginOptions): FolioPlugin {
   const resolved = normalizeOptions(options);
 

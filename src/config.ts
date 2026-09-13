@@ -3,6 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import fs from "fs-extra";
 import { validateFolioPlugins } from "./plugin.js";
+import { loadSiteTranslations } from "./plugins/i18n/site-locale.js";
 import type { DocsConfig } from "./types.js";
 
 export const DEFAULT_DOCS_CONFIG: Required<Pick<DocsConfig, "title" | "description" | "contentDir">> & DocsConfig = {
@@ -43,6 +44,11 @@ export const DEFAULT_DOCS_CONFIG: Required<Pick<DocsConfig, "title" | "descripti
   search: {
     enabled: true,
     provider: "local",
+  },
+  uiLocale: {
+    defaultLocale: "en",
+    directory: "locales",
+    locale: "en",
   },
 };
 
@@ -89,7 +95,7 @@ export async function resolveDocsConfig(cwd: string = process.cwd()): Promise<Do
           const mod = await import(`${pathToFileURL(importPath).href}?t=${cacheKey}`);
           const resolvedUserConfig: DocsConfig = mod.default || mod.config || {};
           validateFolioPlugins(resolvedUserConfig.plugins);
-          return {
+          const mergedConfig: DocsConfig = {
             ...DEFAULT_DOCS_CONFIG,
             ...resolvedUserConfig,
             theme: {
@@ -120,6 +126,8 @@ export async function resolveDocsConfig(cwd: string = process.cwd()): Promise<Do
               ...resolvedUserConfig.search,
             },
           };
+          mergedConfig.uiLocale = await loadSiteTranslations(cwd, mergedConfig.uiLocale);
+          return mergedConfig;
         } finally {
           if (temporaryConfigPath) await fs.remove(temporaryConfigPath);
         }
@@ -130,5 +138,5 @@ export async function resolveDocsConfig(cwd: string = process.cwd()): Promise<Do
     }
   }
 
-  return DEFAULT_DOCS_CONFIG;
+  return { ...DEFAULT_DOCS_CONFIG, uiLocale: await loadSiteTranslations(cwd, DEFAULT_DOCS_CONFIG.uiLocale) };
 }

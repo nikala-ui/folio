@@ -2,6 +2,7 @@
 
 import type { Component } from "solid-js";
 import type { FolioPluginConfig } from "./plugin.js";
+import type { DocsUiLocaleConfig } from "./plugins/i18n/site-locale.js";
 
 export type DocsIcon = Component<{
   class?: string;
@@ -172,6 +173,8 @@ export interface DocsConfig {
     /** A provider name or a configured adapter instance. */
     provider?: string | import("./search/provider.js").SearchAdapter;
   };
+  /** JSON-backed translations for the documentation interface. */
+  uiLocale?: DocsUiLocaleConfig;
   /** Build-time extensions created by Folio plugin factories. */
   plugins?: FolioPluginConfig;
 }
