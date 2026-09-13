@@ -53,11 +53,15 @@ try {
   await access(path.join(outputRoot, "favicon.ico"));
   await access(path.join(outputRoot, "assets"));
 
-  await assertServerStarts([cliPath, "dev", "--port", "4184"], tempRoot, "http://localhost:4184/");
   await assertServerStarts(
-    [cliPath, "preview", "--port", "4185", "--outDir", "dist"],
+    [cliPath, "dev", "--host", "127.0.0.1", "--port", "4184"],
     tempRoot,
-    "http://localhost:4185/",
+    "http://127.0.0.1:4184/",
+  );
+  await assertServerStarts(
+    [cliPath, "preview", "--host", "127.0.0.1", "--port", "4185", "--outDir", "dist"],
+    tempRoot,
+    "http://127.0.0.1:4185/",
   );
 
   console.log("Generated consumer smoke test passed: init, install, build, assets, dev, and preview.");
