@@ -13,6 +13,7 @@ export interface DocsRouter {
   pathname: Accessor<string>;
   currentPage: Accessor<PageData | undefined>;
   activePageModule: Accessor<PageModule | null | undefined>;
+  navigate: (url: string) => void;
 }
 
 const normalizePath = (path: string) => path.replace(/\/$/, "") || "/";
@@ -21,6 +22,14 @@ export function createDocsRouter(options: DocsRouterOptions): DocsRouter {
   const [pathname, setPathname] = createSignal(
     options.initialPath || (typeof window !== "undefined" ? window.location.pathname : "/")
   );
+  const navigate = (url: string) => {
+    if (typeof window === "undefined") return;
+    const target = new URL(url, window.location.origin);
+    if (target.origin !== window.location.origin) return;
+    window.history.pushState(null, "", `${target.pathname}${target.search}${target.hash}`);
+    setPathname(target.pathname);
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  };
 
   onMount(() => {
     const handlePopState = () => setPathname(window.location.pathname);
@@ -43,8 +52,7 @@ export function createDocsRouter(options: DocsRouterOptions): DocsRouter {
       const url = new URL(href, window.location.origin);
       if (url.origin !== window.location.origin) return;
       event.preventDefault();
-      setPathname(url.pathname);
-      window.history.pushState(null, "", href);
+      navigate(href);
       if (url.hash) {
         const element = document.getElementById(url.hash.slice(1));
         if (element) {
@@ -102,5 +110,5 @@ export function createDocsRouter(options: DocsRouterOptions): DocsRouter {
       });
   });
 
-  return { pathname, currentPage, activePageModule: loadedPageModule };
+  return { pathname, currentPage, activePageModule: loadedPageModule, navigate };
 }

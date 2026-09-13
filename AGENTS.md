@@ -5,9 +5,10 @@ this repository.
 
 ## Project purpose
 
-Folio is a configurable documentation system for SolidJS
-projects. It turns MDX content into searchable, server-rendered and
-client-navigable documentation sites.
+Folio is a configurable documentation system for Markdown and MDX content. It
+turns content files into searchable, server-rendered and client-navigable
+documentation sites. Its default theme and client runtime are built with
+SolidJS, but the content may document any project, library, API, or product.
 
 The engine uses MDX, Vite, Tailwind CSS v4, Shiki, and the Nikala UI design
 system for its default theme and interface components. Developers may use

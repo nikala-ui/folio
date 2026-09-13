@@ -6,13 +6,15 @@ import { cn } from "@/lib/cn";
 import { ChevronDown } from "lucide-solid";
 import { DocsTableOfContents } from "../content/table-of-contents.jsx";
 import type { DocsTableOfContentsProps } from "../../types.js";
+import { useSiteLocale } from "../../../plugins/i18n/runtime.jsx";
 
 export const DocsMobileTableOfContents: Component<DocsTableOfContentsProps> = (props) => {
   const [local, rest] = splitProps(props, ["items", "title", "class", "onActiveChange"]);
   const [open, setOpen] = createSignal(false);
   const [activeId, setActiveId] = createSignal(local.items[0]?.id || "");
   const [rootElement, setRootElement] = createSignal<HTMLDivElement>();
-  const title = () => local.title ?? "On this page";
+  const siteLocale = useSiteLocale();
+  const title = () => local.title ?? siteLocale.t("tableOfContents.title");
   const activeTitle = () => local.items.find((item) => item.id === activeId())?.text || title();
   const handleActiveChange = (id: string) => {
     setActiveId(id);

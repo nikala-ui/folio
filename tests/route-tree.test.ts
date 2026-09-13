@@ -87,6 +87,33 @@ describe("route-tree", () => {
       expect(tree[1].items?.[0].title).toBe("Button");
       expect(tree[1].items?.[1].title).toBe("Dialog");
     });
+
+    test("does not create an empty locale group after hiding translated pages", () => {
+      const tree = buildSidebarTree([
+        {
+          slug: "getting-started",
+          url: "/getting-started",
+          filePath: "content/getting-started.mdx",
+          sourcePath: "getting-started.mdx",
+          title: "Getting Started",
+          toc: [],
+          frontmatter: { locale: "en" },
+        },
+        {
+          slug: "getting-started",
+          url: "/ka/getting-started",
+          filePath: "content/ka/getting-started.mdx",
+          sourcePath: "ka/getting-started.mdx",
+          title: "დაწყება",
+          toc: [],
+          frontmatter: { locale: "ka" },
+        },
+      ], ["ka"]);
+
+      expect(tree).toEqual([
+        { title: "Getting Started", href: "/getting-started", icon: undefined },
+      ]);
+    });
   });
 
   describe("flattenSidebarItems", () => {

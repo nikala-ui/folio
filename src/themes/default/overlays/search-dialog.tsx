@@ -9,8 +9,10 @@ import { CommandItem } from "@/components/ui/command";
 import { FileText } from "lucide-solid";
 import type { DocsSearchDialogProps } from "../../types.js";
 import { resolveSearchProvider, searchPages } from "../../../search/provider.js";
+import { useSiteLocale } from "../../../plugins/i18n/runtime.jsx";
 
 export const DocsSearchDialog: Component<DocsSearchDialogProps> = (props) => {
+  const siteLocale = useSiteLocale();
   const showAlgoliaAttribution = () =>
     typeof props.provider !== "string" && props.provider?.name === "algolia";
 
@@ -60,13 +62,13 @@ export const DocsSearchDialog: Component<DocsSearchDialogProps> = (props) => {
 
         return (
           <>
-            <CommandInput id="docs-search-input" placeholder="Search documentation..." />
+            <CommandInput id="docs-search-input" placeholder={siteLocale.t("search.placeholder")} />
             <CommandList>
               <Show when={!searching() && query().length > 0 && filteredPages().length === 0}>
-                <CommandEmpty>No matching documents found.</CommandEmpty>
+                <CommandEmpty>{siteLocale.t("search.empty")}</CommandEmpty>
               </Show>
               <Show when={!searching() && filteredPages().length > 0}>
-                <CommandGroup heading="Pages">
+                <CommandGroup heading={siteLocale.t("search.pages")}>
                   <For each={filteredPages()}>
                     {(page) => (
                       <CommandItem
@@ -89,9 +91,9 @@ export const DocsSearchDialog: Component<DocsSearchDialogProps> = (props) => {
                   target="_blank"
                   rel="noreferrer"
                   class="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                  aria-label="Search by Algolia"
+                  aria-label={`${siteLocale.t("search.by")} Algolia`}
                 >
-                  <span>Search by</span>
+                  <span>{siteLocale.t("search.by")}</span>
                   <img src="/algolia-logo.svg" alt="Algolia" class="h-4 w-auto object-contain" />
                 </a>
               </div>

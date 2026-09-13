@@ -7,10 +7,36 @@ import { describe, expect, test } from "bun:test";
 import { loadConfig } from "../src/config.js";
 import { buildDocs } from "../src/server/index.js";
 import type { FolioPlugin } from "../src/plugin.js";
+import { createI18nPlugin } from "../src/plugins/i18n/index.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("self-hosted production acceptance", () => {
+  test("builds locale-directory routes from a temporary consumer project", async () => {
+    const projectRoot = await mkdtemp(path.join(os.tmpdir(), "folio-i18n-consumer-"));
+    const outputRoot = path.join(projectRoot, "dist");
+    try {
+      await mkdir(path.join(projectRoot, "docs", "ka"), { recursive: true });
+      await writeFile(path.join(projectRoot, "docs", "guide.mdx"), "---\ntitle: Guide\n---\n\n# Guide\n");
+      await writeFile(path.join(projectRoot, "docs", "ka", "guide.mdx"), "---\ntitle: სახელმძღვანელო\n---\n\n# სახელმძღვანელო\n");
+
+      await buildDocs({
+        root: projectRoot,
+        outDir: outputRoot,
+        config: {
+          title: "i18n consumer",
+          contentDir: "docs",
+          plugins: [createI18nPlugin({ defaultLocale: "en", locales: ["en", "ka"] })],
+        },
+      });
+
+      expect(await readFile(path.join(outputRoot, "guide", "index.html"), "utf8")).toContain("Guide");
+      expect(await readFile(path.join(outputRoot, "ka", "guide", "index.html"), "utf8")).toContain("სახელმძღვანელო");
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  }, 60_000);
+
   test("builds the repository docs through the real plugin pipeline", async () => {
     const outputRoot = await mkdtemp(path.join(os.tmpdir(), "folio-self-hosted-"));
     const calls: string[] = [];

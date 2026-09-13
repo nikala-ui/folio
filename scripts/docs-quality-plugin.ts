@@ -1,4 +1,4 @@
-import { defineFolioPlugin, type FolioPlugin } from "../../plugin.js";
+import { defineFolioPlugin, type FolioPlugin } from "../src/plugin.js";
 
 export interface DocsQualityOptions {
   /** Turn quality warnings into build failures. */
@@ -23,18 +23,17 @@ export function createDocsQualityPlugin(options: DocsQualityOptions = {}): Folio
 
       for (const key of requiredFrontmatter) {
         const value = page.frontmatter[key];
-        if (value === undefined || value === null || value === "") {
+        if (value === undefined || value === null || String(value).trim() === "") {
           issues.push(`frontmatter.${key} is required`);
         }
       }
 
-      if (issues.length === 0) return page;
-      const message = `${page.sourcePath || page.url}: ${issues.join("; ")}`;
-      if (strict) throw new Error(message);
-      context.logger.warn(`[folio] Documentation quality warning: ${message}`);
+      if (issues.length) {
+        const message = `[folio:docs-quality] ${page.sourcePath || page.url}: ${issues.join("; ")}`;
+        if (strict) throw new Error(message);
+        context.logger.warn(message);
+      }
       return page;
     },
   });
 }
-
-export const docsQualityPlugin = createDocsQualityPlugin();

@@ -7,7 +7,6 @@ import {
   FolioPluginHookError,
 } from "../src/core/plugin/index.js";
 import type { FolioPage, FolioPlugin } from "../src/plugin.js";
-import { createClickMePlugin } from "../src/plugins/click-me/index.js";
 import { nikalaDocsPlugin } from "../src/server/plugin/index.js";
 import { RESOLVED_TREE_ID } from "../src/server/plugin/constants.js";
 
@@ -115,6 +114,45 @@ describe("plugin lifecycle manager", () => {
     expect(modes).toEqual(["development", "development", "development"]);
   });
 
+  test("expands the scanned catalog before page collection", async () => {
+    const generatedPage = { ...page, slug: "guide/next", url: "/guide/next", title: "Next" };
+    const calls: string[] = [];
+    const lifecycle = manager([
+      {
+        name: "routes",
+        pagesGenerated: (pages) => {
+          calls.push(`first:${pages.length}`);
+          return [...pages, generatedPage];
+        },
+      },
+      {
+        name: "observer",
+        pagesGenerated: (pages) => {
+          calls.push(`second:${pages.length}`);
+          return pages;
+        },
+      },
+    ]);
+
+    const result = await lifecycle.pagesGenerated([page]);
+
+    expect(calls).toEqual(["first:1", "second:2"]);
+    expect(result.map((current) => current.url)).toEqual(["/guide/start", "/guide/next"]);
+  });
+
+  test("rejects duplicate routes from a page-generation plugin", async () => {
+    const lifecycle = manager([{
+      name: "duplicate-routes",
+      pagesGenerated: (pages) => [...pages, page],
+    }]);
+
+    await expect(lifecycle.pagesGenerated([page])).rejects.toMatchObject({
+      name: "FolioPluginHookError",
+      pluginName: "duplicate-routes",
+      hook: "pagesGenerated",
+    });
+  });
+
   test("chains transformed pages and preserves the route identity", async () => {
     const lifecycle = manager([
       { name: "title", pageTransformed: (current) => ({ ...current, title: `${current.title}!` }) },
@@ -182,16 +220,6 @@ describe("plugin lifecycle manager", () => {
       { label: "External", href: "https://example.com", external: true },
     ]);
     expect(lifecycle.getPages()[0].pageActions).toEqual(result.pageActions);
-  });
-
-  test("keeps the click-me example action development-only", async () => {
-    const development = manager([createClickMePlugin({ href: "/configuration/plugins" })], [page], "development");
-    const production = manager([createClickMePlugin({ href: "/configuration/plugins" })], [page], "production");
-
-    expect((await development.pageActions(page)).pageActions).toEqual([
-      { label: "Click me", href: "/configuration/plugins", external: undefined },
-    ]);
-    expect((await production.pageActions(page)).pageActions).toEqual([]);
   });
 
   test("rejects malformed page actions with plugin metadata", async () => {

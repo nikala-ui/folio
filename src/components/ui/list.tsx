@@ -9,6 +9,7 @@ import { Dynamic } from "solid-js/web";
 import { cva, type VariantProps } from "class-variance-authority";
 import { ChevronRight } from "lucide-solid";
 import { cn } from "@/lib/cn";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 
 /* --- List Container --- */
 export interface ListProps extends JSX.HTMLAttributes<HTMLDivElement> {
@@ -128,6 +129,7 @@ export const ListItem: Component<ListItemProps> = (props) => {
     "class",
     "children",
   ]);
+  const siteLocale = useSiteLocale();
 
   const content = () => (
     <>
@@ -136,7 +138,7 @@ export const ListItem: Component<ListItemProps> = (props) => {
         <Show when={local.avatar}>
           <img
             src={local.avatar}
-            alt={local.title || "Avatar"}
+            alt={local.title || siteLocale.t("image.avatar")}
             class="w-10 h-10 rounded-lg object-cover shrink-0 border border-border"
           />
         </Show>

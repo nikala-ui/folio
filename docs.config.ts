@@ -1,7 +1,7 @@
 import { algoliaAdapter } from "@nikala-ui/folio-algolia";
 import type { DocsConfig } from "./src/types.js";
-import { createDocsQualityPlugin } from "./src/plugins/docs-quality/index.js";
-import { createClickMePlugin } from "./src/plugins/click-me/index.js";
+import { createDocsQualityPlugin } from "./scripts/docs-quality-plugin.js";
+import { createI18nPlugin } from "@/plugins/i18n/index.js";
 
 const config: DocsConfig = {
   title: "Folio",
@@ -61,7 +61,11 @@ const config: DocsConfig = {
   },
   plugins: [
     createDocsQualityPlugin({ strict: true }),
-    createClickMePlugin({ href: "/configuration/plugins" }),
+    createI18nPlugin({
+      defaultLocale: "en",
+      locales: ["en", "ka"],
+      translations: { directory: "locales" },
+    }),
   ],
   shiki: {
     themes: {

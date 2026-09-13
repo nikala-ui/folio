@@ -27,6 +27,7 @@ import { pageToMarkdown, pageToText, resolvePageActionUrl, sourceToMarkdown } fr
 import { getRepositorySourceUrl } from "../../navigation/repository-links.js";
 import { resolveSearchProvider } from "../../search/provider.js";
 import type { DocsLayoutProps } from "../types.js";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 
 export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
   const [local, rest] = splitProps(props, [
@@ -34,6 +35,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
     "tree",
     "pages",
     "currentPage",
+    "onNavigate",
     "breadcrumbs",
     "toc",
     "prev",
@@ -44,6 +46,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
   ]);
 
   const [searchOpen, setSearchOpen] = createSignal(false);
+  const siteLocale = useSiteLocale();
   const pageClipboard = createClipboard();
   const searchEnabled = () => local.config.search?.enabled !== false;
   const searchProvider = () => resolveSearchProvider(local.config.search);
@@ -100,6 +103,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
   const sidebar = (className?: string) => (
     <DocsSidebar
       tree={local.tree}
+      pages={local.pages}
       nav={local.config.navigation?.navbar || local.config.nav}
       currentUrl={currentUrl()}
       title={local.config.title}
@@ -135,7 +139,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
                         rel="noreferrer"
                         class={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shrink-0")}
                       >
-                        View source
+                        {siteLocale.t("actions.viewSource")}
                       </a>
                     )}
                   </Show>
@@ -158,23 +162,23 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
                         variant="secondary"
                         size="sm"
                         class="shrink-0 gap-1"
-                        aria-label="Copy documentation page"
+                        aria-label={siteLocale.t("actions.copyDocumentationPage")}
                       >
                         <Copy class="size-3.5" />
-                        <span class="hidden sm:inline">Copy page</span>
+                        <span class="hidden sm:inline">{siteLocale.t("actions.copyPage")}</span>
                         <ChevronDown class="size-3.5" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <Show when={copyPageEnabled()}>
                           <DropdownMenuItem onClick={copyPage}>
                             <FileText class="mr-2 size-4" />
-                            Copy page
+                            {siteLocale.t("actions.copyPage")}
                           </DropdownMenuItem>
                         </Show>
                         <Show when={copyMarkdownEnabled()}>
                           <DropdownMenuItem onClick={copyMarkdown}>
                             <Copy class="mr-2 size-4" />
-                            Copy as Markdown
+                            {siteLocale.t("actions.copyAsMarkdown")}
                           </DropdownMenuItem>
                         </Show>
                         <Show when={aiProviders().length > 0}>
@@ -182,7 +186,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
                             {(provider) => (
                               <DropdownMenuItem as="a" href={pageActionUrl(provider)} target="_blank" rel="noreferrer">
                                 <ExternalLink class="mr-2 size-4" />
-                                Open in {provider.name}
+                                {siteLocale.t("actions.openInProvider", { provider: provider.name })}
                               </DropdownMenuItem>
                             )}
                           </For>
@@ -222,7 +226,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
                         rel="noreferrer"
                         class={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 h-8 w-full gap-1.5 text-xs")}
                       >
-                        {promo().cta || "Learn more"}
+                        {promo().cta || siteLocale.t("actions.learnMore")}
                         <ExternalLink class="size-3" aria-hidden="true" />
                       </a>
                     </CardContent>
@@ -262,13 +266,13 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
     <SidebarProvider defaultOpen={true} class="min-h-screen w-full items-stretch">
       <Show when={landingPage()} fallback={<Show when={sidebarLayout()} fallback={
         <div class="flex min-h-screen min-w-0 flex-1 flex-col">
-          <DocsNavbar config={local.config} showBrand={true} showSidebarTrigger={false} onOpenSearch={() => setSearchOpen(true)} />
+          <DocsNavbar config={local.config} currentPage={local.currentPage} pages={local.pages} onNavigate={local.onNavigate} showBrand={true} showSidebarTrigger={false} onOpenSearch={() => setSearchOpen(true)} />
           <div class="flex min-h-0 min-w-0 max-w-full flex-1 items-start">{content()}</div>
         </div>
       }>
         {sidebar()}
         <div class="flex min-h-screen min-w-0 flex-1 flex-col">
-          <DocsNavbar config={local.config} showBrand={false} onOpenSearch={() => setSearchOpen(true)} />
+          <DocsNavbar config={local.config} currentPage={local.currentPage} pages={local.pages} onNavigate={local.onNavigate} showBrand={false} onOpenSearch={() => setSearchOpen(true)} />
           {content()}
         </div>
       </Show>}>
@@ -276,6 +280,9 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
           <Show when={showNavbar()}>
             <DocsNavbar
               config={local.config}
+              currentPage={local.currentPage}
+              pages={local.pages}
+              onNavigate={local.onNavigate}
               showBrand={true}
               showSidebarTrigger={showLandingSidebar()}
               mobileSidebarTrigger={landingPage()}

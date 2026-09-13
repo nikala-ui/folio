@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
 } from "./dropdown-menu";
 import { cn } from "@/lib/cn";
+import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 
 export interface ThemeToggleProps
   extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> {
@@ -56,6 +57,7 @@ const RADIUS_OPTIONS: { value: Radius; label: string }[] = [
  * Interactive UI theme switcher supporting button, mini (dropdown), and max (customizer panel) modes with View Transition animations.
  */
 export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
+  const siteLocale = useSiteLocale();
   const [local, rest] = splitProps(props, ["mode", "effect", "variant", "size", "class"]);
   const { theme, setTheme, accent, setAccent, radius, setRadius } = useTheme();
 
@@ -94,7 +96,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
           size={local.size || "icon"}
           onClick={handleToggleClick}
           class={cn("relative cursor-pointer", local.class)}
-          aria-label="Toggle theme"
+          aria-label={siteLocale.t("theme.toggle")}
           {...rest}
         >
           <Show
@@ -103,7 +105,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
           >
             <Moon class="h-4 w-4 text-foreground transition-transform" />
           </Show>
-          <span class="sr-only">Toggle theme</span>
+          <span class="sr-only">{siteLocale.t("theme.toggle")}</span>
         </Button>
       }
     >
@@ -122,7 +124,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
           >
             <Moon class="h-4 w-4 text-foreground transition-transform" />
           </Show>
-          <span class="sr-only">Toggle theme</span>
+          <span class="sr-only">{siteLocale.t("theme.toggle")}</span>
         </DropdownMenuTrigger>
 
         <Show
@@ -132,17 +134,17 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
             <DropdownMenuContent>
               <DropdownMenuItem onClick={(e: MouseEvent) => changeThemeWithEffect("light", e)}>
                 <Sun class="mr-2 h-4 w-4 text-muted-foreground" />
-                Light
+                {siteLocale.t("theme.light")}
               </DropdownMenuItem>
 
               <DropdownMenuItem onClick={(e: MouseEvent) => changeThemeWithEffect("dark", e)}>
                 <Moon class="mr-2 h-4 w-4 text-muted-foreground" />
-                Dark
+                {siteLocale.t("theme.dark")}
               </DropdownMenuItem>
 
               <DropdownMenuItem onClick={(e: MouseEvent) => changeThemeWithEffect("system", e)}>
                 <Monitor class="mr-2 h-4 w-4 text-muted-foreground" />
-                System
+                {siteLocale.t("theme.system")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           }
@@ -152,7 +154,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
             <div class="p-2 space-y-2">
               <DropdownMenuGroup>
                 <DropdownMenuLabel class="px-0 pt-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Theme Mode
+                  {siteLocale.t("theme.mode")}
                 </DropdownMenuLabel>
                 <div class="grid grid-cols-3 gap-1 my-1.5">
                   <Button
@@ -161,7 +163,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
                     onClick={(e: MouseEvent) => changeThemeWithEffect("light", e)}
                     class="h-8 text-xs cursor-pointer"
                   >
-                    Light
+                    {siteLocale.t("theme.light")}
                   </Button>
                   <Button
                     variant={theme() === "dark" ? "default" : "outline"}
@@ -169,7 +171,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
                     onClick={(e: MouseEvent) => changeThemeWithEffect("dark", e)}
                     class="h-8 text-xs cursor-pointer"
                   >
-                    Dark
+                    {siteLocale.t("theme.dark")}
                   </Button>
                   <Button
                     variant={theme() === "system" ? "default" : "outline"}
@@ -177,7 +179,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
                     onClick={(e: MouseEvent) => changeThemeWithEffect("system", e)}
                     class="h-8 text-xs cursor-pointer"
                   >
-                    System
+                    {siteLocale.t("theme.system")}
                   </Button>
                 </div>
               </DropdownMenuGroup>
@@ -186,7 +188,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
 
               <DropdownMenuGroup>
                 <DropdownMenuLabel class="px-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Brand Accent Color
+                  {siteLocale.t("theme.brandAccentColor")}
                 </DropdownMenuLabel>
                 <div class="flex flex-wrap gap-1.5 my-1.5">
                   <For each={ACCENT_OPTIONS}>
@@ -212,7 +214,7 @@ export const ThemeToggle: Component<ThemeToggleProps> = (props) => {
 
               <DropdownMenuGroup>
                 <DropdownMenuLabel class="px-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Border Radius
+                  {siteLocale.t("theme.borderRadius")}
                 </DropdownMenuLabel>
                 <div class="grid grid-cols-5 gap-1 my-1.5">
                   <For each={RADIUS_OPTIONS}>

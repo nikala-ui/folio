@@ -69,7 +69,11 @@ export const SectionHeading: Component<SectionHeadingProps> = (props) => {
 
   return (
     <div class={cn("space-y-2", local.class)} {...rest}>
-      <div class={cn("flex items-center justify-between gap-2", v() === "section" && "w-full")}>
+      <div class={cn(
+        "flex justify-between gap-2",
+        v() === "page" ? "flex-col items-start sm:flex-row sm:items-center" : "items-center",
+        v() === "section" && "w-full",
+      )}>
         <div class="flex min-w-0 items-center gap-2">
           <Show when={v() === "page"}>
             <h1 class={headingVariants({ variant: v() })}>

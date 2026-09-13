@@ -53,6 +53,7 @@
     "typecheck": "bunx tsc --noEmit -p tsconfig.json",
     "test": "bun test tests",
     "test:browser": "bun tests/ssr-preview.playwright.ts",
+    "test:browser-i18n": "bun tests/i18n-browser.playwright.ts",
     "test:browser-hmr": "bun tests/dev-hmr.playwright.ts",
     "test:generated": "bun tests/generated-project.smoke.ts",
     "plugin:perf": "bun scripts/plugin-performance.ts",

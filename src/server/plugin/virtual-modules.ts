@@ -33,15 +33,7 @@ export const bundledThemes = {};
 export default { createHighlighter, bundledLanguages, bundledThemes };
 `;
     if (id === RESOLVED_CONFIG_ID) {
-      const configFile = ["docs.config.ts", "docs.config.js", "docs.config.mjs", "nikala.docs.config.ts", "nikala.docs.config.js", "nikala.docs.config.mjs", "nikala.config.ts", "nikala.config.js"]
-        .map((filename) => path.join(rootDir, filename)).find((file) => fs.existsSync(file));
-      if (!configFile) return `export default ${serializeModuleValue(resolvedConfig)};`;
-      return `
-import userConfig from ${serializeModuleValue(configFile)};
-const defaults = ${serializeModuleValue(resolvedConfig)};
-const config = { ...defaults, ...userConfig, navigation: { ...defaults.navigation, ...userConfig.navigation, sidebar: { ...defaults.navigation?.sidebar, ...userConfig.navigation?.sidebar } }, theme: { ...defaults.theme, ...userConfig.theme }, shiki: { ...defaults.shiki, ...userConfig.shiki, themes: { ...defaults.shiki?.themes, ...userConfig.shiki?.themes } }, search: { ...defaults.search, ...userConfig.search } };
-export default config;
-`;
+      return `export default ${serializeModuleValue(resolvedConfig)};`;
     }
     if (id === RESOLVED_TREE_ID) {
       const pages = [...await lifecycleSession!.pages()];

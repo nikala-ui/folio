@@ -29,6 +29,7 @@ try {
     "docs/index.mdx",
     "src/components/ui",
     "src/hooks",
+    "src/plugins",
     "src/themes/default",
     "public/favicon.ico",
   ]) {

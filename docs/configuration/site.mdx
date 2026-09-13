@@ -42,6 +42,35 @@ export default {
 - `css` points to a consumer-owned CSS entrypoint.
 - `logo.image` is served from the consumer project's public assets.
 
+## Site UI translations
+
+The default theme can load its static interface text from JSON files. Configure
+the directory relative to the project root and the fallback locale through the
+i18n plugin in your project's `docs.config.ts`:
+
+```ts title="docs.config.ts"
+import { createI18nPlugin } from "@/plugins/i18n";
+
+export default {
+  plugins: [
+    createI18nPlugin({
+      defaultLocale: "en",
+      locales: ["en", "ka"],
+      translations: { directory: "locales" },
+    }),
+  ],
+};
+```
+
+The directory contains one JSON file per locale, such as `locales/en.json` and
+`locales/ka.json`. Translation keys are validated against Folio's typed catalog;
+unknown keys fail configuration loading instead of being silently ignored.
+Missing keys fall back to the default locale. Translation files belong to the
+consumer project; Folio does not ship a site-specific language catalog. The
+default theme exposes the global locale selector in the navbar when multiple
+locale catalogs are available and disables locales without a matching page
+variant for the current page.
+
 ## Repository source links
 
 When `repository` is configured, the default theme adds a `View source` link
