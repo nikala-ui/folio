@@ -1,5 +1,6 @@
 import { algoliaAdapter } from "@nikala-ui/folio-algolia";
 import type { DocsConfig } from "./src/types.js";
+import { createDocsQualityPlugin } from "./src/plugins/docs-quality/index.js";
 
 const config: DocsConfig = {
   title: "Folio",
@@ -57,6 +58,9 @@ const config: DocsConfig = {
     enabled: true,
     provider: algoliaAdapter,
   },
+  plugins: [
+    createDocsQualityPlugin({ strict: true }),
+  ],
   shiki: {
     themes: {
       light: "github-light",

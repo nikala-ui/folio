@@ -52,11 +52,12 @@ example:
 ```text
 src/
 └── plugins/
-    └── metadata.ts
+    └── metadata/
+        └── index.ts
 docs.config.ts
 ```
 
-Create `src/plugins/metadata.ts`:
+Create `src/plugins/metadata/index.ts`:
 
 ```ts
 import { defineFolioPlugin } from "@nikala-ui/folio";
@@ -78,7 +79,7 @@ Register it in the consumer's `docs.config.ts`:
 
 ```ts
 import type { DocsConfig } from "@nikala-ui/folio";
-import { metadataPlugin } from "./src/plugins/metadata.js";
+import { metadataPlugin } from "./src/plugins/metadata/index.js";
 
 const config: DocsConfig = {
   title: "Project Documentation",
