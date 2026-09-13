@@ -56,6 +56,7 @@ export const App: Component<AppProps> = (props) => {
     <SiteLocaleProvider
       config={config.uiLocale}
       pages={allPages}
+      currentPage={router.currentPage()}
       currentPath={router.currentPage()?.url}
       onNavigate={router.navigate}
     >

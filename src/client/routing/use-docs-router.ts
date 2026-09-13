@@ -26,8 +26,8 @@ export function createDocsRouter(options: DocsRouterOptions): DocsRouter {
     if (typeof window === "undefined") return;
     const target = new URL(url, window.location.origin);
     if (target.origin !== window.location.origin) return;
-    setPathname(target.pathname);
     window.history.pushState(null, "", `${target.pathname}${target.search}${target.hash}`);
+    setPathname(target.pathname);
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   };
 

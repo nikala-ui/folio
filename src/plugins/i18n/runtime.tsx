@@ -25,13 +25,19 @@ const SiteLocaleContext = runtimeGlobal.__folioSiteLocaleContext
 interface SiteLocaleProviderProps {
   config?: DocsUiLocaleConfig;
   pages?: readonly PageData[];
+  currentPage?: PageData;
   currentPath?: string;
   onNavigate?: (url: string) => void;
 }
 
 export const SiteLocaleProvider: ParentComponent<SiteLocaleProviderProps> = (props) => {
-  const initial = props.config?.locale || props.config?.defaultLocale || "en";
-  const [locale, setLocale] = createSignal(initial);
+  const configuredInitial = props.config?.locale || props.config?.defaultLocale || "en";
+  const currentPage = () => props.currentPage || props.pages?.find((page) => page.url === props.currentPath);
+  const pageInitial = () => {
+    const page = currentPage();
+    return (page ? getPageLocale(page) : undefined) || configuredInitial;
+  };
+  const [locale, setLocale] = createSignal(pageInitial());
   const locales = () => Object.keys(props.config?.translations || {}).sort();
   const setSiteLocale = (next: string) => {
     if (locales().includes(next)) setLocale(next);
@@ -42,7 +48,7 @@ export const SiteLocaleProvider: ParentComponent<SiteLocaleProviderProps> = (pro
     if (typeof window === "undefined") return;
 
     const saved = window.localStorage.getItem(SITE_LOCALE_STORAGE_KEY);
-    const preferredLocale = saved && locales().includes(saved) ? saved : initial;
+    const preferredLocale = saved && locales().includes(saved) ? saved : pageInitial();
     if (!currentPath) {
       setSiteLocale(preferredLocale);
       return;
@@ -51,7 +57,7 @@ export const SiteLocaleProvider: ParentComponent<SiteLocaleProviderProps> = (pro
     const currentPage = props.pages?.find((page) => page.url === currentPath);
     const localizedPage = findLocalizedPage(props.pages || [], currentPage, preferredLocale);
     if (!localizedPage && currentPage) {
-      setSiteLocale(getPageLocale(currentPage) || initial);
+      setSiteLocale(getPageLocale(currentPage) || configuredInitial);
       return;
     }
     setSiteLocale(preferredLocale);
