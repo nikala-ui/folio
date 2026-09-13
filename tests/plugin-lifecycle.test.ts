@@ -7,7 +7,6 @@ import {
   FolioPluginHookError,
 } from "../src/core/plugin/index.js";
 import type { FolioPage, FolioPlugin } from "../src/plugin.js";
-import { createClickMePlugin } from "../src/plugins/click-me/index.js";
 import { nikalaDocsPlugin } from "../src/server/plugin/index.js";
 import { RESOLVED_TREE_ID } from "../src/server/plugin/constants.js";
 
@@ -221,16 +220,6 @@ describe("plugin lifecycle manager", () => {
       { label: "External", href: "https://example.com", external: true },
     ]);
     expect(lifecycle.getPages()[0].pageActions).toEqual(result.pageActions);
-  });
-
-  test("keeps the click-me example action development-only", async () => {
-    const development = manager([createClickMePlugin({ href: "/configuration/plugins" })], [page], "development");
-    const production = manager([createClickMePlugin({ href: "/configuration/plugins" })], [page], "production");
-
-    expect((await development.pageActions(page)).pageActions).toEqual([
-      { label: "Click me", href: "/configuration/plugins", external: undefined },
-    ]);
-    expect((await production.pageActions(page)).pageActions).toEqual([]);
   });
 
   test("rejects malformed page actions with plugin metadata", async () => {

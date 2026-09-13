@@ -10,7 +10,7 @@ import fs from "fs-extra";
 import matter from "gray-matter";
 import { nikalaDocsPlugin } from "./plugin/index.js";
 import type { DocsConfig, PageData } from "../types.js";
-import { loadConfig } from "../config.js";
+import { loadConfig, resolvePluginConfig } from "../config.js";
 import { scanContent } from "../core/content-scanner.js";
 import { getPageLastModified, isPageIndexable, renderSeoMetadata } from "./seo.js";
 import { createFolioBuildSession, type FolioBuildSession } from "./plugin/lifecycle.js";
@@ -407,7 +407,7 @@ async function prerenderDocs(
   pages: readonly PageData[],
 ): Promise<void> {
   const root = options.root ? path.resolve(process.cwd(), options.root) : process.cwd();
-  const config = options.config || await loadConfig(root);
+  const config = options.config ? resolvePluginConfig(options.config) : await loadConfig(root);
   if (!pages.length) return;
   const renderer = await createSsrRenderer(options);
 
@@ -510,7 +510,7 @@ export async function createDocsServer(options: DocsServerOptions = {}): Promise
 export async function buildDocs(options: DocsServerOptions = {}): Promise<void> {
   const root = options.root ? path.resolve(process.cwd(), options.root) : process.cwd();
   const outDir = options.outDir ? path.resolve(root, options.outDir) : path.resolve(root, "dist");
-  const config = options.config || await loadConfig(root);
+  const config = options.config ? resolvePluginConfig(options.config) : await loadConfig(root);
   const contentDir = path.resolve(root, options.docsDir || config.contentDir || "docs");
   const lifecycleSession = options.lifecycleSession || createFolioBuildSession({
     plugins: config.plugins,
@@ -580,7 +580,7 @@ function addHydrationScript(template: string, hydrationScript?: string): string 
 export async function createDocsRequestHandler(options: DocsServerOptions = {}): Promise<(request: Request) => Promise<Response>> {
   const root = options.root ? path.resolve(process.cwd(), options.root) : process.cwd();
   const outDir = options.outDir ? path.resolve(root, options.outDir) : path.resolve(root, "dist");
-  const config = options.config || await loadConfig(root);
+  const config = options.config ? resolvePluginConfig(options.config) : await loadConfig(root);
   const contentDir = path.resolve(root, options.docsDir || config.contentDir || "docs");
   const pages = await scanContent(contentDir);
   const template = await fs.readFile(path.join(outDir, "index.html"), "utf-8");

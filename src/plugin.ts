@@ -37,6 +37,8 @@ export interface FolioBuildResult {
 
 export interface FolioPlugin {
   name: string;
+  /** Optional configuration defaults contributed by this plugin. */
+  config?: Partial<DocsConfig>;
   /** Runs after configuration has been resolved and before content scanning. */
   configResolved?: (context: FolioPluginContext) => void | Promise<void>;
   /** Runs once before the current build or development scan starts. */

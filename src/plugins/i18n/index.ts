@@ -6,6 +6,9 @@ export interface I18nPluginOptions {
   defaultLocale: string;
   locales: readonly string[];
   frontmatterKey?: string;
+  translations?: {
+    directory?: string;
+  };
 }
 
 function normalizeLocale(value: string, label: string): string {
@@ -29,6 +32,9 @@ function normalizeOptions(options: I18nPluginOptions): Required<I18nPluginOption
     defaultLocale,
     locales,
     frontmatterKey: options.frontmatterKey?.trim() || "locale",
+    translations: {
+      directory: options.translations?.directory?.trim() || "locales",
+    },
   };
 }
 
@@ -51,6 +57,12 @@ export function createI18nPlugin(options: I18nPluginOptions): FolioPlugin {
 
   return createFolioPlugin(() => ({
     name: "i18n",
+    config: {
+      uiLocale: {
+        defaultLocale: resolved.defaultLocale,
+        directory: resolved.translations.directory,
+      },
+    },
     pagesGenerated: (pages) => pages.map((page) => {
       const sourceLocale = page.sourcePath?.split("/")[0];
       if (sourceLocale && resolved.locales.includes(sourceLocale)) {

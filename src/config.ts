@@ -54,7 +54,27 @@ export const DEFAULT_DOCS_CONFIG: Required<Pick<DocsConfig, "title" | "descripti
 
 export function defineDocsConfig(config: DocsConfig): DocsConfig {
   validateFolioPlugins(config.plugins);
+  if (config.uiLocale !== undefined) {
+    throw new Error("[folio] Configure site translations through createI18nPlugin() in DocsConfig.plugins");
+  }
   return config;
+}
+
+export function resolvePluginConfig(config: DocsConfig): DocsConfig {
+  validateFolioPlugins(config.plugins);
+  const pluginConfig = config.plugins?.reduce<DocsConfig>(
+    (merged, plugin) => ({ ...merged, ...(plugin.config || {}) }),
+    {},
+  ) || {};
+
+  return {
+    ...config,
+    ...pluginConfig,
+    uiLocale: {
+      ...(config.uiLocale || {}),
+      ...(pluginConfig.uiLocale || {}),
+    },
+  };
 }
 
 const CONFIG_FILENAMES = [
@@ -94,9 +114,14 @@ export async function resolveDocsConfig(cwd: string = process.cwd()): Promise<Do
         try {
           const mod = await import(`${pathToFileURL(importPath).href}?t=${cacheKey}`);
           const resolvedUserConfig: DocsConfig = mod.default || mod.config || {};
-          validateFolioPlugins(resolvedUserConfig.plugins);
+          if (resolvedUserConfig.uiLocale !== undefined) {
+            throw new Error("[folio] Configure site translations through createI18nPlugin() in DocsConfig.plugins");
+          }
+          const resolvedPluginConfig = resolvePluginConfig(resolvedUserConfig);
+          const pluginConfig = resolvedPluginConfig;
           const mergedConfig: DocsConfig = {
             ...DEFAULT_DOCS_CONFIG,
+            ...pluginConfig,
             ...resolvedUserConfig,
             theme: {
             ...DEFAULT_DOCS_CONFIG.theme,
@@ -124,6 +149,10 @@ export async function resolveDocsConfig(cwd: string = process.cwd()): Promise<Do
             search: {
               ...DEFAULT_DOCS_CONFIG.search,
               ...resolvedUserConfig.search,
+            },
+            uiLocale: {
+              ...DEFAULT_DOCS_CONFIG.uiLocale,
+              ...pluginConfig.uiLocale,
             },
           };
           mergedConfig.uiLocale = await loadSiteTranslations(cwd, mergedConfig.uiLocale);

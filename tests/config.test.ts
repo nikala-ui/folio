@@ -103,7 +103,7 @@ describe("docs config", () => {
   });
 
   test("loads JSON site translations and falls back to the default locale", async () => {
-    await withConfig("export default { uiLocale: { defaultLocale: 'en' } };", async (root) => {
+    await withConfig("export default { plugins: [{ name: 'i18n', config: { uiLocale: { defaultLocale: 'en' } } }] };", async (root) => {
       await mkdir(path.join(root, "locales"));
       await writeFile(path.join(root, "locales/en.json"), JSON.stringify({
         "navigation.search": "Search",
@@ -116,6 +116,15 @@ describe("docs config", () => {
       expect(getSiteTranslation({ ...config.uiLocale, locale: "ka" }, "navigation.search")).toBe("ძიება");
       expect(getSiteTranslation({ ...config.uiLocale, locale: "fr" }, "navigation.search")).toBe("Search");
       expect(getSiteTranslation({ ...config.uiLocale, locale: "ka" }, "actions.copyPage")).toBe("Copy page");
+    });
+  });
+
+  test("rejects top-level site locale configuration", async () => {
+    await withConfig("export default { uiLocale: { defaultLocale: 'en' } };", async (root) => {
+      await assert.rejects(
+        resolveDocsConfig(root),
+        /Configure site translations through createI18nPlugin\(\)/,
+      );
     });
   });
 

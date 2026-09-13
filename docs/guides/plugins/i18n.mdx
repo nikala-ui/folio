@@ -1,6 +1,7 @@
 ---
-title: i18n plugin foundation
-description: Normalize supported locale metadata without changing documentation routes.
+title: i18n plugin
+description: Localize documentation content and the global documentation interface.
+icon: languages
 order: 3
 ---
 
@@ -9,13 +10,14 @@ metadata. It reads a locale from frontmatter and applies the configured
 default when a page does not declare one.
 
 ```ts
-import { createI18nPlugin } from "./src/plugins/i18n/index.js";
+import { createI18nPlugin } from "@/plugins/i18n";
 
 export default {
   plugins: [
     createI18nPlugin({
       defaultLocale: "en",
       locales: ["en", "ka"],
+      translations: { directory: "locales" },
     }),
   ],
 };
@@ -53,5 +55,21 @@ to the configured frontmatter key. An unsupported locale fails the page
 transformation with plugin metadata, so invalid translations cannot silently
 enter the build.
 
-The foundation does not render a language switcher yet. That requires a
-separately specified navigation contract.
+The plugin also loads global interface translations from JSON files under the
+configured directory:
+
+```text
+locales/
+├── en.json
+└── ka.json
+```
+
+The default theme renders the language switcher in the navbar. It changes the
+site interface and navigates to the matching content page when that page
+exists. If the current page has no translation for the selected locale, that
+locale is disabled for the current page and the interface remains in the
+page's available locale. The locale segment is hidden from sidebar categories
+and breadcrumbs.
+
+Unknown translation keys fail configuration loading. Missing keys and missing
+locale files fall back to the configured default locale.

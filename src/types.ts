@@ -173,7 +173,7 @@ export interface DocsConfig {
     /** A provider name or a configured adapter instance. */
     provider?: string | import("./search/provider.js").SearchAdapter;
   };
-  /** JSON-backed translations for the documentation interface. */
+  /** Resolved JSON-backed translations for the documentation interface. */
   uiLocale?: DocsUiLocaleConfig;
   /** Build-time extensions created by Folio plugin factories. */
   plugins?: FolioPluginConfig;
