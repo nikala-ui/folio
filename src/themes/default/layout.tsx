@@ -10,6 +10,7 @@ import { DocsBreadcrumbs } from "./content/breadcrumbs.jsx";
 import { DocsPager } from "./content/pager.jsx";
 import { DocsTableOfContents } from "./content/table-of-contents.jsx";
 import { DocsMobileTableOfContents } from "./navigation/mobile-table-of-contents.jsx";
+import { DocsLanguageSwitcher } from "./components/language-switcher.jsx";
 import { DocsSearchDialog } from "./overlays/search-dialog.jsx";
 import { cn } from "@/lib/cn";
 import { buttonVariants } from "@/components/ui/button";
@@ -151,6 +152,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
                       </a>
                     )}
                   </For>
+                  <DocsLanguageSwitcher currentPage={local.currentPage} pages={local.pages} />
                   <Show when={hasPageActions()}>
                     <DropdownMenu placement="bottom-end">
                       <DropdownMenuTrigger

@@ -7,9 +7,12 @@ export function createPageNavigation(currentPage: Accessor<PageData | undefined>
   const breadcrumbs = createMemo<BreadcrumbItemData[]>(() => {
     const page = currentPage();
     if (!page) return [];
-    const segments = page.url.split("/").filter(Boolean);
+    const allSegments = page.url.split("/").filter(Boolean);
+    const locale = typeof page.frontmatter.locale === "string" ? page.frontmatter.locale : undefined;
+    const hasLocalePrefix = Boolean(locale && allSegments[0] === locale);
+    const segments = hasLocalePrefix ? allSegments.slice(1) : allSegments;
     const items: BreadcrumbItemData[] = [{ title: "Docs", href: "/" }];
-    let accumulated = "";
+    let accumulated = hasLocalePrefix ? `/${locale}` : "";
     for (let index = 0; index < segments.length; index++) {
       accumulated += `/${segments[index]}`;
       const isLast = index === segments.length - 1;

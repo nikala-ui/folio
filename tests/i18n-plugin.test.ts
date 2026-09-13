@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { createFolioPluginLifecycleManager } from "../src/core/plugin/index.js";
 import { createI18nPlugin } from "../src/plugins/i18n/index.js";
 import type { FolioPage } from "../src/plugin.js";
+import { buildSidebarTree } from "../src/core/route-tree.js";
+import { createPageNavigation } from "../src/client/navigation/page-navigation.js";
 
 const page: FolioPage = {
   slug: "guide/start",
@@ -67,6 +69,23 @@ describe("i18n plugin", () => {
       pluginName: "i18n",
       hook: "pagesGenerated",
     });
+  });
+
+  test("keeps locale directories out of sidebar and breadcrumbs", async () => {
+    const lifecycle = manager();
+    const pages = await lifecycle.pagesGenerated([
+      { ...page, sourcePath: "getting-started.mdx", url: "/getting-started", slug: "getting-started" },
+      { ...page, sourcePath: "ka/getting-started.mdx", url: "/ka/getting-started", slug: "ka-getting-started" },
+    ]);
+    const transformed = await Promise.all(pages.map((current) => lifecycle.pageTransformed(current)));
+    const sidebar = buildSidebarTree(transformed);
+    const navigation = createPageNavigation(() => transformed[1], transformed, sidebar);
+
+    expect(sidebar.map((item) => item.title)).toEqual(["Start"]);
+    expect(navigation.breadcrumbs()).toEqual([
+      { title: "Docs", href: "/" },
+      { title: "Start", href: undefined },
+    ]);
   });
 
   test("rejects unsupported locales", async () => {

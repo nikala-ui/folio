@@ -12,19 +12,53 @@ export function formatGroupName(segment: string): string {
     .join(" ");
 }
 
+function navigationSegments(page: PageData): string[] {
+  const segments = page.url.slice(1).split("/").filter(Boolean);
+  const locale = typeof page.frontmatter.locale === "string" ? page.frontmatter.locale : undefined;
+  return locale && segments[0] === locale ? segments.slice(1) : segments;
+}
+
+function navigationDirectorySegments(directory: string, locales: Set<string>): string[] {
+  const segments = directory.split("/").filter(Boolean);
+  return locales.has(segments[0]) ? segments.slice(1) : segments;
+}
+
+function translationKey(page: PageData): string {
+  const locale = typeof page.frontmatter.locale === "string" ? page.frontmatter.locale : undefined;
+  const sourcePath = page.sourcePath || page.url;
+  const prefix = locale ? `${locale}/` : "";
+  return locale && sourcePath.startsWith(prefix) ? sourcePath.slice(prefix.length) : sourcePath;
+}
+
+function uniqueTranslationPages(pages: PageData[]): PageData[] {
+  const seen = new Set<string>();
+  return pages.filter((page) => {
+    const key = translationKey(page);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function buildSidebarTree(pages: PageData[], directories: string[] = []): SidebarItem[] {
+  pages = uniqueTranslationPages(pages);
   const rootPages: PageData[] = [];
   const categoryMap = new Map<string, PageData[]>();
+  const locales = new Set(
+    pages
+      .map((page) => typeof page.frontmatter.locale === "string" ? page.frontmatter.locale : undefined)
+      .filter((locale): locale is string => Boolean(locale)),
+  );
 
   for (const directory of directories) {
-    const category = directory.split("/")[0];
+    const category = navigationDirectorySegments(directory, locales)[0];
     if (category && !categoryMap.has(category)) categoryMap.set(category, []);
   }
 
   // Derive categories from pages as well. Tests and programmatic consumers
   // may provide pages without a separately scanned directory list.
   for (const page of pages) {
-    const segments = page.url.slice(1).split("/");
+    const segments = navigationSegments(page);
     if (segments.length > 1 && !categoryMap.has(segments[0])) {
       categoryMap.set(segments[0], []);
     }
@@ -37,7 +71,7 @@ export function buildSidebarTree(pages: PageData[], directories: string[] = []):
       continue;
     }
 
-    const segments = page.url.slice(1).split("/");
+    const segments = navigationSegments(page);
     const isCategoryIndex = segments.length === 1 && categoryMap.has(segments[0]);
 
     // A directory index is the overview page for its category. Keep it in
@@ -99,7 +133,7 @@ export function buildSidebarTree(pages: PageData[], directories: string[] = []):
   });
 
   for (const { cat, catPages } of categories) {
-    const categoryIndex = catPages.find((page) => page.url === `/${cat}`);
+    const categoryIndex = catPages.find((page) => navigationSegments(page).join("/") === cat);
     const group: SidebarItem = {
       title: formatGroupName(cat),
       href: categoryIndex?.url,
@@ -117,7 +151,7 @@ export function buildSidebarTree(pages: PageData[], directories: string[] = []):
     });
 
     for (const page of catPages) {
-      const segments = page.url.slice(1).split("/");
+      const segments = navigationSegments(page);
       const isCategoryIndex = segments.length === 1;
 
       if (isCategoryIndex) {
