@@ -1,18 +1,15 @@
 // packages/docs/src/themes/default/sidebar.tsx
-import { createSignal, For, onCleanup, onMount, Show, splitProps, type Component } from "solid-js";
+import { createSignal, onCleanup, onMount, Show, splitProps, type Component } from "solid-js";
 import { Sidebar } from "@/components/ui/sidebar";
-import { SidebarHeader } from "@/components/ui/sidebar";
 import { SidebarContent } from "@/components/ui/sidebar";
-import { SidebarFooter } from "@/components/ui/sidebar";
-import { SidebarMenu } from "@/components/ui/sidebar";
-import { SidebarMenuButton } from "@/components/ui/sidebar";
-import { sidebarMenuButtonVariants } from "@/components/ui/sidebar";
 import { useSidebar } from "@/components/ui/sidebar";
-import { Logo } from "@/components/ui/logo";
 import { createFocusTrap } from "@/hooks/create-focus-trap";
 import { createLockScroll } from "@/hooks/create-lock-scroll";
 import { cn } from "@/lib/cn";
 import type { DocsSidebarProps } from "../types.js";
+import { SidebarFooter } from "./components/sidebar-footer.jsx";
+import { SidebarHeader } from "./components/sidebar-header.jsx";
+import { SidebarMobileNav } from "./components/sidebar-mobile-nav.jsx";
 import { SidebarTree } from "./navigation/sidebar-tree.jsx";
 import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 
@@ -68,58 +65,18 @@ export const DocsSidebar: Component<DocsSidebarProps> = (props) => {
             {...rest}
           >
             <Show when={local.showHeader !== false}>
-              <SidebarHeader class="h-14 box-border p-3 group-data-[collapsible=icon]:p-2">
-                <a
-                  href={local.logo?.href || "/"}
-                  data-sidebar="menu-button"
-                  class={cn(sidebarMenuButtonVariants({ variant: "default", size: "default" }), "h-8 w-full justify-between group-data-[collapsible=icon]:h-10")}
-                >
-                  <div class="flex items-center gap-2.5 overflow-hidden">
-                    <Show when={local.logo?.image} fallback={<Logo class="h-7 w-auto" />}>
-                      {(image) => <img src={image()} alt={brandText()} class="size-7 shrink-0 rounded-md object-contain" />}
-                    </Show>
-                    <div class="flex min-w-0 flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-                      <span class="truncate text-xs font-bold">{brandText()}</span>
-                      <span class="truncate text-[10px] text-muted-foreground">{local.headerSubtitle}</span>
-                    </div>
-                  </div>
-                </a>
-              </SidebarHeader>
+              <SidebarHeader logo={local.logo} brandText={brandText()} subtitle={local.headerSubtitle} />
             </Show>
 
             <SidebarContent class="h-full overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
               <Show when={local.nav?.length}>
-                <nav aria-label={siteLocale.t("navigation.primary")} class="border-b border-border/60 px-2 py-2 md:hidden">
-                  <For each={local.nav}>
-                    {(item) => (
-                      <a
-                        href={item.href}
-                        target={item.external ? "_blank" : undefined}
-                        rel={item.external ? "noreferrer" : undefined}
-                        onClick={() => sidebar.setOpenMobile(false)}
-                        class={cn(sidebarMenuButtonVariants({ variant: "default", size: "default" }), "w-full justify-start text-sm font-normal")}
-                      >
-                        {item.title}
-                      </a>
-                    )}
-                  </For>
-                </nav>
+                <SidebarMobileNav items={local.nav} onNavigate={() => sidebar.setOpenMobile(false)} />
               </Show>
               <SidebarTree tree={local.tree} pages={local.pages} currentUrl={local.currentUrl} />
             </SidebarContent>
 
             <Show when={local.showFooter !== false}>
-              <SidebarFooter class="p-2">
-                <SidebarMenuButton size="lg" class="w-full justify-start">
-                  <div class="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/15 text-xs font-bold text-primary">
-                    N
-                  </div>
-                  <div class="flex min-w-0 flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-                    <span class="truncate text-xs font-semibold">{brandText()}</span>
-                    <span class="truncate text-[10px] text-muted-foreground">{local.footerText}</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarFooter>
+              <SidebarFooter brandText={brandText()} footerText={local.footerText} />
             </Show>
           </Sidebar>
         </div>
