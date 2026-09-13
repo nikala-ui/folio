@@ -3,7 +3,6 @@ import { createSignal, Show, splitProps, type ParentComponent } from "solid-js";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { Container } from "@/components/ui/container";
-import { SectionHeading } from "@/components/ui/section-heading";
 import { DocsNavbar } from "./navbar.jsx";
 import { DocsSidebar } from "./sidebar.jsx";
 import { DocsBreadcrumbs } from "./content/breadcrumbs.jsx";
@@ -15,7 +14,7 @@ import { cn } from "@/lib/cn";
 import { getRepositorySourceUrl } from "../../navigation/repository-links.js";
 import { resolveSearchProvider } from "../../search/provider.js";
 import type { DocsLayoutProps } from "../types.js";
-import { PageActions } from "./components/page-actions.jsx";
+import { PageHeader } from "./components/page-header.jsx";
 import { SidebarPromo } from "./components/sidebar-promo.jsx";
 import { createPageCopy } from "./hooks/use-page-copy.js";
 import {
@@ -95,25 +94,19 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
             <DocsBreadcrumbs items={local.breadcrumbs!} class="mb-6" />
           </Show>
           <Show when={local.currentPage?.title}>
-            <SectionHeading
-              variant="page"
+            <PageHeader
               title={local.currentPage!.title}
               description={local.currentPage?.description}
-              class="mb-8"
-              actions={
-                <PageActions
-                  sourceUrl={sourceUrl()}
-                  pageActions={pageActions()}
-                  aiProviders={aiProviders()}
-                  copyPageEnabled={copyPageEnabled()}
-                  copyMarkdownEnabled={copyMarkdownEnabled()}
-                  pageUrl={local.currentPage?.url}
-                  pageTitle={local.currentPage?.title}
-                  markdown={markdown}
-                  onCopyPage={pageCopy.copyPage}
-                  onCopyMarkdown={pageCopy.copyMarkdown}
-                />
-              }
+              sourceUrl={sourceUrl()}
+              pageActions={pageActions()}
+              aiProviders={aiProviders()}
+              copyPageEnabled={copyPageEnabled()}
+              copyMarkdownEnabled={copyMarkdownEnabled()}
+              pageUrl={local.currentPage?.url}
+              pageTitle={local.currentPage?.title}
+              markdown={markdown}
+              onCopyPage={pageCopy.copyPage}
+              onCopyMarkdown={pageCopy.copyMarkdown}
             />
           </Show>
           <Show when={showToc()}>
