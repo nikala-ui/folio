@@ -150,6 +150,7 @@ load config
   -> content scan
   -> pageCollected (each page)
   -> pageTransformed (each plugin, sequentially)
+  -> pageActions (each plugin, sequentially)
   -> route tree/sidebar/pagination
   -> MDX compilation
   -> artifact generation
@@ -200,6 +201,26 @@ pageTransformed(page) {
 The transformed page is then used to build the route tree, sidebar, and
 pagination. Do not mutate the received object in place. Return a new object and
 copy nested objects that you change.
+
+### `pageActions`
+
+Use `pageActions` to add serializable links to the current page's heading action
+area. The default theme renders these links as buttons in both SSR HTML and the
+hydrated browser page:
+
+```ts
+const clickMePlugin = defineFolioPlugin({
+  name: "click-me",
+  pageActions: () => [{
+    label: "Click me",
+    href: "/getting-started",
+  }],
+});
+```
+
+Each action requires a `label` and `href`; `external: true` opens the link in a
+new tab. Actions must be plain serializable data, so event handlers and
+arbitrary client functions are intentionally not accepted.
 
 ### `generate`
 

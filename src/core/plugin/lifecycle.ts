@@ -4,20 +4,20 @@ import type {
   FolioPlugin,
   FolioPluginContext,
   FolioPluginLogger,
-} from "../plugin.js";
-import { validateFolioPlugins } from "../plugin.js";
-import type { DocsConfig } from "../types.js";
+} from "../../plugin.js";
+import { validateFolioPlugins } from "../../plugin.js";
+import type { DocsConfig } from "../../types.js";
 import {
   FolioPluginHookError,
   type FolioPluginHookMetadata,
   type LifecycleHook,
-} from "./plugin-lifecycle-error.js";
-import { snapshot } from "./plugin-lifecycle-snapshot.js";
+} from "./lifecycle-error.js";
+import { snapshot } from "./lifecycle-snapshot.js";
 
 type ContextHook = "configResolved" | "buildStart" | "generate";
 
-export type { FolioPluginHookMetadata, LifecycleHook } from "./plugin-lifecycle-error.js";
-export { FolioPluginHookError } from "./plugin-lifecycle-error.js";
+export type { FolioPluginHookMetadata, LifecycleHook } from "./lifecycle-error.js";
+export { FolioPluginHookError } from "./lifecycle-error.js";
 
 export interface FolioPluginLifecycleOptions {
   plugins?: readonly FolioPlugin[];
@@ -85,6 +85,38 @@ export class FolioPluginLifecycleManager {
     const index = this.pages.findIndex((candidate) => routeIdentity(candidate) === routeIdentity(page));
     if (index >= 0) this.pages[index] = transformed;
     return snapshot(transformed);
+  }
+
+  async pageActions(page: FolioPage): Promise<FolioPage> {
+    let actions = [...(page.pageActions ?? [])];
+    for (const plugin of this.plugins) {
+      if (!plugin.pageActions) continue;
+      try {
+        const result = await plugin.pageActions(snapshot({ ...page, pageActions: actions }), this.context());
+        if (result === undefined) continue;
+        if (!Array.isArray(result)) throw new Error("must return an array of page actions");
+        for (const action of result) {
+          if (!action || typeof action !== "object") throw new Error("each page action must be an object");
+          if (typeof action.label !== "string" || !action.label.trim()) {
+            throw new Error("each page action must have a non-empty label");
+          }
+          if (typeof action.href !== "string" || !action.href.trim()) {
+            throw new Error("each page action must have a non-empty href");
+          }
+          if (action.external !== undefined && typeof action.external !== "boolean") {
+            throw new Error("page action external must be a boolean");
+          }
+        }
+        actions = [...actions, ...result.map((action) => ({ ...action }))];
+      } catch (error) {
+        throw this.wrap(plugin, "pageActions", error, page);
+      }
+    }
+
+    const result = snapshot({ ...page, pageActions: actions });
+    const index = this.pages.findIndex((candidate) => routeIdentity(candidate) === routeIdentity(page));
+    if (index >= 0) this.pages[index] = result;
+    return result;
   }
 
   async generate(): Promise<void> { await this.runContextHook("generate"); }

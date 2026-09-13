@@ -29,6 +29,9 @@ describe("self-hosted production acceptance", () => {
       pageTransformed: (page) => page.sourcePath === "configuration/plugins.mdx"
         ? { ...page, title: `${page.title} (Acceptance)`, frontmatter: { ...page.frontmatter, order: -100 } }
         : page,
+      pageActions: (page) => page.sourcePath === "configuration/plugins.mdx"
+        ? [{ label: "Acceptance action", href: "/configuration/plugins" }]
+        : [],
       generate: async (context) => {
         calls.push("generate");
         await Bun.write(

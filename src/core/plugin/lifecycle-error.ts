@@ -1,10 +1,11 @@
-import type { FolioPage, FolioPluginContext } from "../plugin.js";
+import type { FolioPage, FolioPluginContext } from "../../plugin.js";
 
 export type LifecycleHook =
   | "configResolved"
   | "buildStart"
   | "pageCollected"
   | "pageTransformed"
+  | "pageActions"
   | "generate"
   | "buildEnd";
 

@@ -92,6 +92,7 @@ load config
   -> content scan
   -> pageCollected (for each page)
   -> pageTransformed (for each page and plugin)
+  -> pageActions (for each page and plugin)
   -> route tree, sidebar, and pagination
   -> MDX compilation
   -> artifact generation
@@ -112,6 +113,7 @@ The hook responsibilities and contracts are:
 | `buildStart` | build context | Prepare plugin state before content discovery. |
 | `pageCollected` | page and context | Observe one scanned `PageData` snapshot. |
 | `pageTransformed` | page and context | Return transformed `PageData` while preserving `slug` and `url`. |
+| `pageActions` | page and context | Return serializable links rendered in the page heading action area. |
 | `generate` | build context | Run after artifact generation; production contexts include `outputDir` and the final page catalog. |
 | `buildEnd` | build result and context | Observe the final immutable result, including failed results. |
 
@@ -153,6 +155,19 @@ Hook inputs are immutable snapshots, so plugins cannot mutate Folio's
 configuration or collected page data. This includes nested objects, arrays,
 maps, sets, dates, regular expressions, and supported provider instances. The
 original config and page objects remain unchanged.
+
+Use `pageActions` to add links to the current page's heading action area:
+
+```ts
+const clickMePlugin = defineFolioPlugin({
+  name: "click-me",
+  pageActions: () => [{ label: "Click me", href: "/getting-started" }],
+});
+```
+
+Actions are serializable and render in both SSR HTML and the hydrated browser.
+Set `external: true` for a new-tab link. Arbitrary event handlers are not part
+of the build-time contract.
 
 Plugin packages should keep feature-specific behavior (such as i18n, API
 documentation, or workspace discovery) outside the core package.

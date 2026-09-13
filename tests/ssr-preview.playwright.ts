@@ -47,8 +47,8 @@ try {
   await page.waitForURL(new RegExp(`${escapeRegExp(pageRoute)}/?$`));
   await assertText(page, pageText);
   await assertTitle(page, pageText);
-  await page.reload({ waitUntil: "networkidle" });
-  await assertText(page, pageText);
+  const clickMe = page.getByRole("link", { name: "Click me", exact: true });
+  assert.equal(await clickMe.count(), 0, "Development-only Click me action must not render in preview");
 
   const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
   mobilePage.on("pageerror", (error) => pageErrors.push(error.stack || error.message));
