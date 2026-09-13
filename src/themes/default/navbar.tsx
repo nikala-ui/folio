@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Kbd } from "@/components/ui/kbd";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { DocsSiteLanguageSwitcher } from "./components/site-language-switcher.jsx";
+import { DocsSiteLanguageSwitcher } from "../../plugins/i18n/components/site-language-switcher.jsx";
 import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 import { Logo } from "@/components/ui/logo";
 import { Search } from "lucide-solid";

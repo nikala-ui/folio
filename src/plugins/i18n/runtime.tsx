@@ -1,6 +1,6 @@
-import { createContext, createSignal, onMount, useContext, type Accessor, type ParentComponent } from "solid-js";
+import { createContext, createEffect, createSignal, useContext, type Accessor, type ParentComponent } from "solid-js";
 import type { PageData } from "../../types.js";
-import { findLocalizedPage } from "./navigation.js";
+import { findLocalizedPage, getPageLocale } from "./navigation.js";
 import { SITE_LOCALE_STORAGE_KEY } from "./constants.js";
 import type { DocsUiLocaleConfig, SiteTranslationKey } from "./site-locale.js";
 
@@ -37,13 +37,25 @@ export const SiteLocaleProvider: ParentComponent<SiteLocaleProviderProps> = (pro
     if (locales().includes(next)) setLocale(next);
   };
 
-  onMount(() => {
+  createEffect(() => {
+    const currentPath = props.currentPath;
+    if (typeof window === "undefined") return;
+
     const saved = window.localStorage.getItem(SITE_LOCALE_STORAGE_KEY);
-    if (!saved) return;
-    setSiteLocale(saved);
-    const currentPage = props.pages?.find((page) => page.url === props.currentPath);
-    const localizedPage = findLocalizedPage(props.pages || [], currentPage, saved);
-    if (localizedPage && localizedPage.url !== props.currentPath) props.onNavigate?.(localizedPage.url);
+    const preferredLocale = saved && locales().includes(saved) ? saved : initial;
+    if (!currentPath) {
+      setSiteLocale(preferredLocale);
+      return;
+    }
+
+    const currentPage = props.pages?.find((page) => page.url === currentPath);
+    const localizedPage = findLocalizedPage(props.pages || [], currentPage, preferredLocale);
+    if (!localizedPage && currentPage) {
+      setSiteLocale(getPageLocale(currentPage) || initial);
+      return;
+    }
+    setSiteLocale(preferredLocale);
+    if (localizedPage && localizedPage.url !== currentPath) props.onNavigate?.(localizedPage.url);
   });
 
   const t = (key: SiteTranslationKey, values: Record<string, string> = {}) => {
