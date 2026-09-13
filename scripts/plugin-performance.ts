@@ -1,5 +1,5 @@
 import { performance } from "node:perf_hooks";
-import { createFolioPluginLifecycleManager } from "../src/core/plugin-lifecycle.js";
+import { createFolioPluginLifecycleManager } from "../src/core/plugin/index.js";
 import type { FolioPage, FolioPlugin } from "../src/plugin.js";
 
 const pageCount = 1_000;

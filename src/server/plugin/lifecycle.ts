@@ -2,7 +2,7 @@ import { scanContent } from "../../core/content-scanner.js";
 import {
   createFolioPluginLifecycleManager,
   type FolioPluginLifecycleManager,
-} from "../../core/plugin-lifecycle.js";
+} from "../../core/plugin/index.js";
 import type {
   FolioBuildResult,
   FolioPage,
@@ -78,7 +78,8 @@ export class FolioBuildSession {
         for (const page of scanned) {
           if (generation !== this.generation) return this.pages();
           await lifecycle.pageCollected(page);
-          await lifecycle.pageTransformed(page);
+          const transformed = await lifecycle.pageTransformed(page);
+          await lifecycle.pageActions(transformed);
         }
         if (generation !== this.generation) return this.pages();
         return lifecycle.getPages();

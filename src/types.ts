@@ -30,6 +30,15 @@ export interface TocItem {
   depth: number;
 }
 
+export interface DocsPageAction {
+  /** Accessible text rendered inside the page action link. */
+  label: string;
+  /** Destination opened when the visitor activates the action. */
+  href: string;
+  /** Open external destinations in a new tab with safe link attributes. */
+  external?: boolean;
+}
+
 export interface PageData {
   slug: string;
   url: string;
@@ -39,6 +48,7 @@ export interface PageData {
   toc: TocItem[];
   title: string;
   description?: string;
+  pageActions?: DocsPageAction[];
 }
 
 export interface SidebarItem {

@@ -95,6 +95,7 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
     title: local.currentPage?.title,
     prompt: provider.prompt,
   });
+  const pageActions = () => local.currentPage?.pageActions || [];
 
   const sidebar = (className?: string) => (
     <DocsSidebar
@@ -138,6 +139,18 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
                       </a>
                     )}
                   </Show>
+                  <For each={pageActions()}>
+                    {(action) => (
+                      <a
+                        href={action.href}
+                        target={action.external ? "_blank" : undefined}
+                        rel={action.external ? "noreferrer" : undefined}
+                        class={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shrink-0")}
+                      >
+                        {action.label}
+                      </a>
+                    )}
+                  </For>
                   <Show when={hasPageActions()}>
                     <DropdownMenu placement="bottom-end">
                       <DropdownMenuTrigger

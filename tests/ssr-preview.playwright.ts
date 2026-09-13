@@ -47,8 +47,13 @@ try {
   await page.waitForURL(new RegExp(`${escapeRegExp(pageRoute)}/?$`));
   await assertText(page, pageText);
   await assertTitle(page, pageText);
+  const clickMe = page.getByRole("link", { name: "Click me", exact: true });
+  await clickMe.waitFor({ state: "visible" });
+  await clickMe.click();
+  await page.waitForURL(/\/configuration\/plugins\/?$/);
+  await assertText(page, "Plugins");
   await page.reload({ waitUntil: "networkidle" });
-  await assertText(page, pageText);
+  await assertText(page, "Plugins");
 
   const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
   mobilePage.on("pageerror", (error) => pageErrors.push(error.stack || error.message));
