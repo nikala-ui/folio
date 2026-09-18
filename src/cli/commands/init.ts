@@ -28,16 +28,6 @@ function isAuthoredSourceFile(file: string): boolean {
   return /\.(?:ts|tsx)$/.test(file) && !file.endsWith(".d.ts");
 }
 
-async function stripSourceMapComments(dir: string): Promise<void> {
-  if (!(await fs.pathExists(dir))) return;
-  for (const sourceFile of await listSourceFiles(dir)) {
-    if (!/\.(?:d\.ts|[cm]?[jt]sx?)$/.test(sourceFile)) continue;
-    const content = await fs.readFile(sourceFile, "utf-8");
-    const cleaned = content.replace(/\s*\/\/[#@]\s*sourceMappingURL=.*$/gm, "");
-    if (cleaned !== content) await fs.writeFile(sourceFile, cleaned, "utf-8");
-  }
-}
-
 async function resolveRegistryDir(): Promise<string> {
   const commandDir = path.dirname(fileURLToPath(import.meta.url));
   const bundledRegistry = path.resolve(commandDir, "../../registry");
@@ -218,7 +208,8 @@ async function copyCustomTheme(root: string): Promise<void> {
   const source = sourceCandidates.find((candidate) => fs.existsSync(candidate));
   const target = path.join(root, "src/themes/default");
   if (!source) {
-    await fs.outputFile(path.join(target, "index.ts"), `export { defaultTheme as default } from "@nikala-ui/folio";
+    const destination = path.join(target, "index.ts");
+    if (!(await fs.pathExists(destination))) await fs.outputFile(destination, `export { defaultTheme as default } from "@nikala-ui/folio";
 `, "utf-8");
     return;
   }
@@ -258,9 +249,12 @@ async function copyCustomTheme(root: string): Promise<void> {
       .find((candidate) => fs.existsSync(candidate));
     if (!sourceFile) continue;
     const destination = path.join(target, relativeDestination);
-    const content = (await fs.readFile(sourceFile, "utf-8"))
-      .replace(/from "\.\.\/types\.js"/g, 'from "@nikala-ui/folio"');
-    await fs.outputFile(destination, content, "utf-8");
+    if (!(await fs.pathExists(destination))) {
+      const content = (await fs.readFile(sourceFile, "utf-8"))
+        .replace(/\s*\/\/[#@]\s*sourceMappingURL=.*$/gm, "")
+        .replace(/from "\.\.\/types\.js"/g, 'from "@nikala-ui/folio"');
+      await fs.outputFile(destination, content, "utf-8");
+    }
   }
 
   const navigationCandidates = [
@@ -275,9 +269,6 @@ async function copyCustomTheme(root: string): Promise<void> {
     if (!(await fs.pathExists(navigationTarget))) await fs.outputFile(navigationTarget, navigationContent, "utf-8");
   }
 
-  // Remove stale references left by older generated themes so upgrading and
-  // re-running init is enough to silence Vite's missing-map warnings.
-  await stripSourceMapComments(target);
 }
 
 async function copyDefaultAssets(root: string): Promise<void> {
@@ -403,7 +394,7 @@ export async function runInitCommand(targetDir = "."): Promise<void> {
   console.log(pc.dim(`  Initializing copy-paste documentation project in ${pc.bold(root)}...`));
   console.log();
   await fs.ensureDir(root);
-  runNikalaInit(root);
+  if (!(await fs.pathExists(path.join(root, "src/lib/cn.ts")))) runNikalaInit(root);
   await writeProjectFiles(root, []);
   const indexPath = path.join(root, "docs/index.mdx");
   if (!(await fs.pathExists(indexPath))) await fs.outputFile(indexPath, `---

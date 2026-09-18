@@ -88,6 +88,9 @@ try {
     "docs/index.mdx": "# User-owned page\n",
     "src/plugins/i18n/index.ts": "// user-owned plugin source\n",
     "src/themes/default/index.ts": "// user-owned theme source\n",
+    "src/themes/default/runtime/page-actions.ts": "// user-owned runtime source\n",
+    "src/components/ui/theme-toggle.tsx": "// user-owned component source\n",
+    "src/lib/cn.ts": "// user-owned utility source\n",
   };
   const userOwnedTsconfig = "{\"userOwned\":true}\n";
   await writeFile(path.join(tempRoot, "tsconfig.json"), userOwnedTsconfig);
