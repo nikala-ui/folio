@@ -56,7 +56,9 @@ try {
     await page.getByRole("menuitem", { name: "EN" }).click();
     await page.waitForURL(/\/getting-started\/?$/);
     await page.getByRole("heading", { name: "Getting Started", exact: true }).waitFor({ state: "visible" });
-    await page.locator('a[data-sidebar="menu-button"]').filter({ hasText: "Getting Started" }).waitFor({ state: "visible" });
+    await page.locator('a[data-sidebar="menu-button"][aria-current="page"]')
+      .filter({ hasText: "Getting Started" })
+      .waitFor({ state: "visible" });
     await page.getByText("Documentation", { exact: true }).waitFor({ state: "visible" });
     assert.equal(await page.title(), "Getting Started - Folio");
 

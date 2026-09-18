@@ -38,7 +38,7 @@ export const DocsMobileTableOfContents: Component<DocsTableOfContentsProps> = (p
       onOpenChange={setOpen}
       ref={setRootElement}
       class={cn(
-        "relative z-20 xl:hidden sticky top-16 rounded-md border border-border bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80",
+        "z-20 xl:hidden sticky top-16 rounded-md border border-border bg-background/95 shadow-sm backdrop-blur supports-backdrop-filter:bg-background/80",
         local.class
       )}
     >
@@ -52,7 +52,7 @@ export const DocsMobileTableOfContents: Component<DocsTableOfContentsProps> = (p
       </CollapsibleTrigger>
       <CollapsibleContent
         onClick={() => setOpen(false)}
-        class="absolute inset-x-0 top-full z-30 max-h-[min(60vh,24rem)] rounded-b-md border border-t-0 border-border bg-card px-3 py-2 shadow-lg !overflow-y-auto"
+        class="absolute inset-x-0 top-full z-30 max-h-[min(60vh,24rem)] rounded-b-md border border-t-0 border-border bg-card px-3 py-2 shadow-lg overflow-y-auto!"
       >
         <DocsTableOfContents items={local.items} title={title()} onActiveChange={handleActiveChange} class="max-h-56 overflow-y-auto" {...rest} />
       </CollapsibleContent>

@@ -1,1 +1,1 @@
-export const FOLIO_VERSION = "0.15.0";
+export const FOLIO_VERSION = "0.15.1";

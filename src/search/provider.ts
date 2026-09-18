@@ -7,9 +7,19 @@ export interface SearchContext {
   pages: PageData[];
 }
 
+export interface SearchAdapterRuntime {
+  /** Browser module that exports the adapter factory. */
+  module: string;
+  /** Named export containing a factory that receives the optional adapter options. */
+  exportName: string;
+  /** JSON-serializable options passed to the browser adapter factory. */
+  options?: unknown;
+}
+
 export interface SearchAdapter {
   name: string;
   search: (context: SearchContext) => PageData[] | Promise<PageData[]>;
+  runtime?: SearchAdapterRuntime;
 }
 
 export type ConfiguredSearchProvider = NonNullable<DocsConfig["search"]>["provider"];
@@ -43,7 +53,7 @@ export const localSearchAdapter: SearchAdapter = {
 export function resolveSearchProvider(search?: DocsConfig["search"]): ResolvedSearchProvider {
   const configuredProvider = search?.provider;
 
-  if (configuredProvider && typeof configuredProvider !== "string") {
+  if (configuredProvider && typeof configuredProvider !== "string" && typeof configuredProvider.search === "function") {
     return {
       requested: configuredProvider.name,
       active: configuredProvider.name,
@@ -52,7 +62,9 @@ export function resolveSearchProvider(search?: DocsConfig["search"]): ResolvedSe
     };
   }
 
-  const requested = configuredProvider?.trim() || LOCAL_SEARCH_PROVIDER;
+  const requested = typeof configuredProvider === "string"
+    ? configuredProvider.trim() || LOCAL_SEARCH_PROVIDER
+    : configuredProvider?.name || LOCAL_SEARCH_PROVIDER;
 
   return {
     requested,

@@ -16,6 +16,11 @@ const srcHooksDir = path.resolve(rootDir, "src/hooks");
 const srcProvidersDir = path.resolve(rootDir, "src/providers");
 const srcLibDir = path.resolve(rootDir, "src/lib");
 const srcPluginsDir = path.resolve(rootDir, "src/plugins");
+const srcThemesDir = path.resolve(rootDir, "src/themes");
+const srcClientRuntimeDir = path.resolve(rootDir, "src/client");
+const srcNavigationDir = path.resolve(rootDir, "src/navigation");
+const srcSearchDir = path.resolve(rootDir, "src/search");
+const srcTemplatesDir = path.resolve(rootDir, "src/templates");
 console.log(pc.cyan("📦 Building @nikala-ui/folio..."));
 
 // TypeScript does not remove files left behind by renames. Clean generated
@@ -84,6 +89,13 @@ try {
   await fs.copy(srcProvidersDir, path.join(docsSourceDir, "providers"));
   if (fs.existsSync(srcLibDir)) await fs.copy(srcLibDir, path.join(docsSourceDir, "lib"));
   await fs.copy(srcPluginsDir, path.join(docsSourceDir, "plugins"));
+  await fs.copy(srcThemesDir, path.join(docsSourceDir, "themes"));
+  await fs.copy(srcClientRuntimeDir, path.join(docsSourceDir, "client"), {
+    filter: (source) => source.endsWith("page-actions.ts") || source === srcClientRuntimeDir,
+  });
+  await fs.copy(srcNavigationDir, path.join(docsSourceDir, "navigation"));
+  await fs.copy(srcSearchDir, path.join(docsSourceDir, "search"));
+  await fs.copy(srcTemplatesDir, path.join(distDir, "templates"));
   console.log(`  ${pc.green("✓")} Bundled registry and local source snapshots`);
 } catch (err: any) {
   console.error(pc.red(`✗ Failed to bundle registry sources: ${err.message}`));
