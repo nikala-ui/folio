@@ -83,6 +83,26 @@ try {
     true,
   );
 
+  const protectedFiles = {
+    "docs.config.ts": "export default { title: \"User-owned config\" };\n",
+    "docs/index.mdx": "# User-owned page\n",
+    "src/plugins/i18n/index.ts": "// user-owned plugin source\n",
+    "src/themes/default/index.ts": "// user-owned theme source\n",
+  };
+  const userOwnedTsconfig = "{\"userOwned\":true}\n";
+  await writeFile(path.join(tempRoot, "tsconfig.json"), userOwnedTsconfig);
+  for (const [relativePath, content] of Object.entries(protectedFiles)) {
+    await writeFile(path.join(tempRoot, relativePath), content);
+  }
+  execFileSync(process.execPath, [cliPath, "init", "."], {
+    cwd: tempRoot,
+    stdio: "ignore",
+  });
+  for (const [relativePath, content] of Object.entries(protectedFiles)) {
+    assert.equal(await readFile(path.join(tempRoot, relativePath), "utf8"), content);
+  }
+  assert.equal(JSON.parse(await readFile(path.join(tempRoot, "tsconfig.json"), "utf8")).userOwned, true);
+
   console.log("Generated consumer smoke test passed: init, install, build, assets, dev, and preview.");
 } finally {
   await rm(tempRoot, { recursive: true, force: true });

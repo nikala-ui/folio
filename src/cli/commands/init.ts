@@ -154,7 +154,7 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
         : file.path.startsWith("ui/")
           ? path.join(componentsDir, relative)
           : path.join(hooksDir, relative);
-      await fs.outputFile(destination, file.content, "utf-8");
+      if (!(await fs.pathExists(destination))) await fs.outputFile(destination, file.content, "utf-8");
       if (file.path.startsWith("hooks/")) hookFiles.push(relative.replace(/\.(tsx?|jsx?)$/, ""));
       else if (file.path.startsWith("ui/")) componentFiles.push(relative.replace(/\.(tsx?|jsx?)$/, ""));
     }
@@ -170,7 +170,8 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
     for (const name of ["theme-toggle", "sidebar", "section-heading", "command"]) {
       const source = path.join(internalComponentsSource, `${name}.tsx`);
       if (await fs.pathExists(source)) {
-        await fs.copy(source, path.join(componentsDir, `${name}.tsx`));
+        const destination = path.join(componentsDir, `${name}.tsx`);
+        if (!(await fs.pathExists(destination))) await fs.copy(source, destination);
         componentFiles.push(name);
       }
     }
@@ -180,7 +181,10 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
     path.resolve(commandDir, "../../vendor/docs-src/lib/cn.ts"),
   ];
   const cnSource = cnCandidates.find((candidate) => fs.existsSync(candidate));
-  if (cnSource) await fs.outputFile(path.join(root, "src/lib/cn.ts"), await fs.readFile(cnSource, "utf-8"), "utf-8");
+  const cnDestination = path.join(root, "src/lib/cn.ts");
+  if (cnSource && !(await fs.pathExists(cnDestination))) {
+    await fs.outputFile(cnDestination, await fs.readFile(cnSource, "utf-8"), "utf-8");
+  }
   return { componentFiles, hookFiles, dependencies: [...dependencies].sort() };
 }
 
@@ -201,7 +205,7 @@ async function copyPluginSources(root: string): Promise<void> {
       .replace(/from "(?:\.\.\/)+types\.js"/g, 'from "@nikala-ui/folio"')
       .replace(/(from "(?:\.\/|\.\.\/)[^"]+)\.jsx"/g, "$1.tsx\"")
       .replace(/(from "(?:\.\/|\.\.\/)[^"]+)\.js"/g, "$1.ts\"");
-    await fs.outputFile(destination, content, "utf-8");
+    if (!(await fs.pathExists(destination))) await fs.outputFile(destination, content, "utf-8");
   }
 }
 
@@ -240,7 +244,7 @@ async function copyCustomTheme(root: string): Promise<void> {
       .replace(/import\("(?:\.\.\/)+types\.js"\)/g, 'import("@nikala-ui/folio")')
       .replace(/from "(\.\.\/|\.\/)[^"]+\.(?:jsx|tsx|js)"/g, (match) => match.replace(/\.(?:jsx|tsx|js)"$/, '"'))
       .replace(/export \* from "(\.\.\/|\.\/)[^"]+\.(?:jsx|tsx|js)"/g, (match) => match.replace(/\.(?:jsx|tsx|js)"$/, '"'));
-    await fs.outputFile(destination, content, "utf-8");
+    if (!(await fs.pathExists(destination))) await fs.outputFile(destination, content, "utf-8");
   }
 
   const runtimeSources = [
@@ -267,7 +271,8 @@ async function copyCustomTheme(root: string): Promise<void> {
   if (navigationSource) {
     const navigationContent = (await fs.readFile(navigationSource, "utf-8"))
       .replace(/from "\.\.\/types\.js"/g, 'from "@nikala-ui/folio"');
-    await fs.outputFile(path.join(target, "navigation/sidebar-state.ts"), navigationContent, "utf-8");
+    const navigationTarget = path.join(target, "navigation/sidebar-state.ts");
+    if (!(await fs.pathExists(navigationTarget))) await fs.outputFile(navigationTarget, navigationContent, "utf-8");
   }
 
   // Remove stale references left by older generated themes so upgrading and
@@ -382,10 +387,13 @@ export default {
     ...existingPackageJson.devDependencies,
   };
   await fs.writeJson(packagePath, packageJson, { spaces: 2 });
-  await fs.outputFile(path.join(root, "tsconfig.json"), JSON.stringify({
-    compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "preserve", jsxImportSource: "solid-js", allowImportingTsExtensions: true, strict: true, skipLibCheck: true, paths: { "@/*": ["./src/*"], "@/components/*": ["./src/components/*"], "@/components/ui/*": ["./src/components/ui/*"], "@/hooks/*": ["./src/hooks/*"], "@/plugins/*": ["./src/plugins/*"] } },
-    include: ["src/**/*", "docs.config.ts"],
-  }, null, 2) + "\n", "utf-8");
+  const tsconfigPath = path.join(root, "tsconfig.json");
+  if (!(await fs.pathExists(tsconfigPath))) {
+    await fs.outputFile(tsconfigPath, JSON.stringify({
+      compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "preserve", jsxImportSource: "solid-js", allowImportingTsExtensions: true, strict: true, skipLibCheck: true, paths: { "@/*": ["./src/*"], "@/components/*": ["./src/components/*"], "@/components/ui/*": ["./src/components/ui/*"], "@/hooks/*": ["./src/hooks/*"], "@/plugins/*": ["./src/plugins/*"] } },
+      include: ["src/**/*", "docs.config.ts"],
+    }, null, 2) + "\n", "utf-8");
+  }
 }
 
 export async function runInitCommand(targetDir = "."): Promise<void> {
