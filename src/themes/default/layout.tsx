@@ -1,33 +1,27 @@
 // packages/docs/src/themes/default/layout.tsx
-import { createSignal, For, Show, splitProps, type ParentComponent } from "solid-js";
+import { createSignal, Show, splitProps, type ParentComponent } from "solid-js";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
-import { Container } from "@/components/ui/container";
-import { SectionHeading } from "@/components/ui/section-heading";
 import { DocsNavbar } from "./navbar.jsx";
 import { DocsSidebar } from "./sidebar.jsx";
-import { DocsBreadcrumbs } from "./content/breadcrumbs.jsx";
-import { DocsPager } from "./content/pager.jsx";
-import { DocsTableOfContents } from "./content/table-of-contents.jsx";
-import { DocsMobileTableOfContents } from "./navigation/mobile-table-of-contents.jsx";
 import { DocsSearchDialog } from "./overlays/search-dialog.jsx";
 import { cn } from "@/lib/cn";
-import { buttonVariants } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { createClipboard } from "@/hooks/create-clipboard";
-import { Copy, FileText, ChevronDown, ExternalLink, Sparkles } from "lucide-solid";
-import { pageToMarkdown, pageToText, resolvePageActionUrl, sourceToMarkdown } from "../../client/page-actions.js";
 import { getRepositorySourceUrl } from "../../navigation/repository-links.js";
 import { resolveSearchProvider } from "../../search/provider.js";
 import type { DocsLayoutProps } from "../types.js";
-import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
+import { DocsPageBody } from "./components/docs-page-body.jsx";
+import { DocsLandingBody } from "./components/docs-landing-body.jsx";
+import { PageHeader } from "./components/page-header.jsx";
+import { createPageCopy } from "./hooks/use-page-copy.js";
+import {
+  isLandingPage,
+  shouldShowLandingSidebar,
+  shouldShowNavbar,
+  shouldShowSidebarFooter,
+  shouldShowSidebarHeader,
+  shouldShowToc,
+  shouldUseSidebarLayout,
+} from "./lib/layout-visibility.js";
 
 export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
   const [local, rest] = splitProps(props, [
@@ -46,26 +40,18 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
   ]);
 
   const [searchOpen, setSearchOpen] = createSignal(false);
-  const siteLocale = useSiteLocale();
-  const pageClipboard = createClipboard();
+  const pageCopy = createPageCopy(() => local.sourceContent);
   const searchEnabled = () => local.config.search?.enabled !== false;
   const searchProvider = () => resolveSearchProvider(local.config.search);
 
   const currentUrl = () => local.currentPage?.url;
-  const landingPage = () =>
-    local.currentPage?.url === "/" && local.config.home?.layout === "landing";
-  const showLandingSidebar = () => local.config.home?.showSidebar === true;
-  const showNavbar = () => local.config.home?.showNavbar !== false;
-  const showToc = () =>
-    Boolean(
-      local.toc &&
-      local.toc.length > 0 &&
-      local.currentPage?.frontmatter?.toc !== false &&
-      (!landingPage() || local.config.home?.showToc === true)
-    );
-  const sidebarLayout = () => local.config.navigation?.layout !== "top";
-  const sidebarHeader = () => local.config.navigation?.sidebar?.header !== false;
-  const sidebarFooter = () => local.config.navigation?.sidebar?.footer !== false;
+  const landingPage = () => isLandingPage(local.currentPage, local.config);
+  const showLandingSidebar = () => shouldShowLandingSidebar(local.config);
+  const showNavbar = () => shouldShowNavbar(local.config);
+  const showToc = () => shouldShowToc(local.toc, local.currentPage, local.config, landingPage());
+  const sidebarLayout = () => shouldUseSidebarLayout(local.config);
+  const sidebarHeader = () => shouldShowSidebarHeader(local.config);
+  const sidebarFooter = () => shouldShowSidebarFooter(local.config);
   const sidebarPromo = () => local.config.navigation?.sidebar?.promo;
   const sourceUrl = () => {
     const page = local.currentPage;
@@ -74,30 +60,10 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
     return getRepositorySourceUrl(repository, page.sourcePath, local.config.contentDir || "docs");
   };
 
-  const pageElement = () => typeof document !== "undefined"
-    ? document.querySelector("main article [data-docs-page-content]") as HTMLElement | null
-    : null;
-  const markdown = () => local.sourceContent
-    ? sourceToMarkdown(local.sourceContent)
-    : pageElement() ? pageToMarkdown(pageElement()!) : "";
-  const copyPage = async () => {
-    const page = pageElement();
-    if (page) await pageClipboard.copy(pageToText(page));
-  };
-  const copyMarkdown = async () => {
-    const content = markdown();
-    if (content) await pageClipboard.copy(content);
-  };
+  const markdown = pageCopy.markdown;
   const aiProviders = () => local.config.pageActions?.ai || [];
   const copyPageEnabled = () => local.config.pageActions?.copyPage !== false;
   const copyMarkdownEnabled = () => local.config.pageActions?.copyMarkdown !== false;
-  const hasPageActions = () => copyPageEnabled() || copyMarkdownEnabled() || aiProviders().length > 0;
-  const pageActionUrl = (provider: { url: string; prompt?: string }) => resolvePageActionUrl(provider.url, {
-    url: typeof window !== "undefined" ? window.location.href : "",
-    content: markdown(),
-    title: local.currentPage?.title,
-    prompt: provider.prompt,
-  });
   const pageActions = () => local.currentPage?.pageActions || [];
 
   const sidebar = (className?: string) => (
@@ -118,146 +84,50 @@ export const DocsLayout: ParentComponent<DocsLayoutProps> = (props) => {
 
   const content = () => (
     <SidebarInset class={cn("min-w-0", local.class)} {...rest}>
-      <Container as="main" size="2xl" class="min-w-0 w-full max-w-[96rem] flex-1 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_16rem] items-start gap-4 sm:gap-8 py-6 sm:py-8">
-        <Container as="article" size="full" class="min-w-0 max-w-none mx-0 px-0 sm:px-4 w-full">
-          <Show when={local.breadcrumbs && local.breadcrumbs.length > 0}>
-            <DocsBreadcrumbs items={local.breadcrumbs!} class="mb-6" />
-          </Show>
+      <DocsPageBody
+        breadcrumbs={local.breadcrumbs}
+        currentPage={local.currentPage}
+        toc={local.toc}
+        prev={local.prev}
+        next={local.next}
+        showToc={showToc()}
+        sidebarPromo={sidebarPromo()}
+        pageActions={
           <Show when={local.currentPage?.title}>
-            <SectionHeading
-              variant="page"
+            <PageHeader
               title={local.currentPage!.title}
               description={local.currentPage?.description}
-              class="mb-8"
-              actions={
-                <div class="flex items-center gap-2">
-                  <Show when={sourceUrl()}>
-                    {(url) => (
-                      <a
-                        href={url()}
-                        target="_blank"
-                        rel="noreferrer"
-                        class={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shrink-0")}
-                      >
-                        {siteLocale.t("actions.viewSource")}
-                      </a>
-                    )}
-                  </Show>
-                  <For each={pageActions()}>
-                    {(action) => (
-                      <a
-                        href={action.href}
-                        target={action.external ? "_blank" : undefined}
-                        rel={action.external ? "noreferrer" : undefined}
-                        class={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shrink-0")}
-                      >
-                        {action.label}
-                      </a>
-                    )}
-                  </For>
-                  <Show when={hasPageActions()}>
-                    <DropdownMenu placement="bottom-end">
-                      <DropdownMenuTrigger
-                        as={Button}
-                        variant="secondary"
-                        size="sm"
-                        class="shrink-0 gap-1"
-                        aria-label={siteLocale.t("actions.copyDocumentationPage")}
-                      >
-                        <Copy class="size-3.5" />
-                        <span class="hidden sm:inline">{siteLocale.t("actions.copyPage")}</span>
-                        <ChevronDown class="size-3.5" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <Show when={copyPageEnabled()}>
-                          <DropdownMenuItem onClick={copyPage}>
-                            <FileText class="mr-2 size-4" />
-                            {siteLocale.t("actions.copyPage")}
-                          </DropdownMenuItem>
-                        </Show>
-                        <Show when={copyMarkdownEnabled()}>
-                          <DropdownMenuItem onClick={copyMarkdown}>
-                            <Copy class="mr-2 size-4" />
-                            {siteLocale.t("actions.copyAsMarkdown")}
-                          </DropdownMenuItem>
-                        </Show>
-                        <Show when={aiProviders().length > 0}>
-                          <For each={aiProviders()}>
-                            {(provider) => (
-                              <DropdownMenuItem as="a" href={pageActionUrl(provider)} target="_blank" rel="noreferrer">
-                                <ExternalLink class="mr-2 size-4" />
-                                {siteLocale.t("actions.openInProvider", { provider: provider.name })}
-                              </DropdownMenuItem>
-                            )}
-                          </For>
-                        </Show>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Show>
-                </div>
-              }
+              sourceUrl={sourceUrl()}
+              pageActions={pageActions()}
+              aiProviders={aiProviders()}
+              copyPageEnabled={copyPageEnabled()}
+              copyMarkdownEnabled={copyMarkdownEnabled()}
+              pageUrl={local.currentPage?.url}
+              pageTitle={local.currentPage?.title}
+              markdown={markdown}
+              onCopyPage={pageCopy.copyPage}
+              onCopyMarkdown={pageCopy.copyMarkdown}
             />
           </Show>
-          <Show when={showToc()}>
-            <DocsMobileTableOfContents items={local.toc!} class="mb-6" />
-          </Show>
-          <Container as="div" size="full" class="prose prose-zinc dark:prose-invert max-w-none px-0 sm:px-0 lg:px-0" data-docs-page-content>
-            {local.children}
-          </Container>
-          <Show when={local.prev || local.next}>
-            <DocsPager prev={local.prev} next={local.next} />
-          </Show>
-        </Container>
-        <Show when={showToc() && local.currentPage?.url} keyed>
-          <Container as="aside" size="sm" class="hidden xl:block w-64 shrink-0 self-start px-0 sticky top-14 z-10 h-fit max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-background">
-            <div class="flex flex-col gap-5">
-              <DocsTableOfContents items={local.toc!} class="max-h-none" />
-              <Show when={sidebarPromo()}>
-                {(promo) => (
-                  <Card class="border-primary/30 bg-primary/5 shadow-none">
-                    <CardContent class="p-4">
-                      <CardTitle class="text-sm">{promo().title}</CardTitle>
-                      <CardDescription class="mt-2 text-xs leading-relaxed">
-                        {promo().description}
-                      </CardDescription>
-                      <a
-                        href={promo().href}
-                        target="_blank"
-                        rel="noreferrer"
-                        class={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 h-8 w-full gap-1.5 text-xs")}
-                      >
-                        {promo().cta || siteLocale.t("actions.learnMore")}
-                        <ExternalLink class="size-3" aria-hidden="true" />
-                      </a>
-                    </CardContent>
-                  </Card>
-                )}
-              </Show>
-            </div>
-          </Container>
-        </Show>
-      </Container>
+        }
+      >
+        {local.children}
+      </DocsPageBody>
       <DocsSearchDialog open={searchOpen()} onOpenChange={setSearchOpen} pages={local.pages} provider={searchEnabled() ? searchProvider().implementation : undefined} />
     </SidebarInset>
   );
 
   const landingContent = () => (
     <SidebarInset class={cn("min-w-0", local.class)} {...rest}>
-      <Container as="main" size="2xl" class="min-w-0 max-w-full flex-1 py-8 sm:py-12 lg:py-16">
-        <Container as="article" size="xl" class="mx-auto min-w-0 px-0 sm:px-4">
-          <Show when={local.config.home?.showBreadcrumbs === true}>
-            <Show when={local.breadcrumbs && local.breadcrumbs.length > 0}>
-              <DocsBreadcrumbs items={local.breadcrumbs!} class="mb-6" />
-            </Show>
-          </Show>
-          <Container as="div" size="full" class="prose prose-zinc dark:prose-invert max-w-none px-0" data-docs-page-content>
-            {local.children}
-          </Container>
-          <Show when={local.config.home?.showPager === true && (local.prev || local.next)}>
-            <DocsPager prev={local.prev} next={local.next} />
-          </Show>
-        </Container>
-      </Container>
+      <DocsLandingBody
+        breadcrumbs={local.breadcrumbs}
+        showBreadcrumbs={local.config.home?.showBreadcrumbs === true}
+        showPager={local.config.home?.showPager === true}
+        prev={local.prev}
+        next={local.next}
+      >
+        {local.children}
+      </DocsLandingBody>
       <DocsSearchDialog open={searchOpen()} onOpenChange={setSearchOpen} pages={local.pages} provider={searchEnabled() ? searchProvider().implementation : undefined} />
     </SidebarInset>
   );
