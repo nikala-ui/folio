@@ -1,5 +1,6 @@
 // packages/docs/src/index.ts
 export * from "./types.js";
+export * from "./themes/types.js";
 export type {
   FolioBuildResult,
   FolioPage,

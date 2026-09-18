@@ -24,6 +24,10 @@ async function listSourceFiles(dir: string): Promise<string[]> {
   return result;
 }
 
+function isAuthoredSourceFile(file: string): boolean {
+  return /\.(?:ts|tsx)$/.test(file) && !file.endsWith(".d.ts");
+}
+
 async function stripSourceMapComments(dir: string): Promise<void> {
   if (!(await fs.pathExists(dir))) return;
   for (const sourceFile of await listSourceFiles(dir)) {
@@ -86,7 +90,7 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
   ].filter((file) => fs.existsSync(file));
   const projectFiles = [
     ...(await listSourceFiles(path.join(root, "docs"))),
-    ...(await listSourceFiles(path.join(root, "src/themes/default"))),
+    ...(await listSourceFiles(path.join(root, "src/themes/default"))).filter(isAuthoredSourceFile),
     ...docsComponentSources,
   ];
   const projectSource = (await Promise.all(projectFiles.map((file) => fs.readFile(file, "utf-8")))).join("\n");
@@ -163,7 +167,7 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
   ];
   const internalComponentsSource = internalComponentCandidates.find((directory) => fs.existsSync(directory));
   if (internalComponentsSource) {
-    for (const name of ["theme-toggle"]) {
+    for (const name of ["theme-toggle", "sidebar", "section-heading", "command"]) {
       const source = path.join(internalComponentsSource, `${name}.tsx`);
       if (await fs.pathExists(source)) {
         await fs.copy(source, path.join(componentsDir, `${name}.tsx`));
@@ -184,24 +188,29 @@ async function copyPluginSources(root: string): Promise<void> {
   const commandDir = path.dirname(fileURLToPath(import.meta.url));
   const sourceCandidates = [
     path.resolve(commandDir, "../../../src/plugins"),
-    path.resolve(commandDir, "../../plugins"),
+    path.resolve(commandDir, "../../vendor/docs-src/plugins"),
   ];
   const source = sourceCandidates.find((candidate) => fs.existsSync(candidate));
   if (!source) throw new Error("Folio plugin sources are missing from the package");
 
-  for (const sourceFile of await listSourceFiles(source)) {
+  for (const sourceFile of (await listSourceFiles(source)).filter(isAuthoredSourceFile)) {
     const relative = path.relative(source, sourceFile);
     const destination = path.join(root, "src/plugins", relative);
     const content = (await fs.readFile(sourceFile, "utf-8"))
       .replace(/from "(?:\.\.\/)+plugin\.js"/g, 'from "@nikala-ui/folio"')
-      .replace(/from "(?:\.\.\/)+types\.js"/g, 'from "@nikala-ui/folio"');
+      .replace(/from "(?:\.\.\/)+types\.js"/g, 'from "@nikala-ui/folio"')
+      .replace(/(from "(?:\.\/|\.\.\/)[^"]+)\.jsx"/g, "$1.tsx\"")
+      .replace(/(from "(?:\.\/|\.\.\/)[^"]+)\.js"/g, "$1.ts\"");
     await fs.outputFile(destination, content, "utf-8");
   }
 }
 
 async function copyCustomTheme(root: string): Promise<void> {
   const commandDir = path.dirname(fileURLToPath(import.meta.url));
-  const sourceCandidates = [path.resolve(commandDir, "../../../src/themes/default"), path.resolve(commandDir, "../../themes/default")];
+  const sourceCandidates = [
+    path.resolve(commandDir, "../../../src/themes/default"),
+    path.resolve(commandDir, "../../vendor/docs-src/themes/default"),
+  ];
   const source = sourceCandidates.find((candidate) => fs.existsSync(candidate));
   const target = path.join(root, "src/themes/default");
   if (!source) {
@@ -211,38 +220,39 @@ async function copyCustomTheme(root: string): Promise<void> {
   }
   for (const sourceFile of await listSourceFiles(source)) {
     const basename = path.basename(sourceFile);
-    const isSourceFile = /\.(ts|tsx)$/.test(sourceFile);
-    const isPublishedThemeFile = /\.jsx?$/.test(sourceFile);
-    if ((!isSourceFile && !isPublishedThemeFile) || basename !== basename.toLowerCase()) continue;
+    if (!isAuthoredSourceFile(sourceFile) || basename !== basename.toLowerCase()) continue;
     const relative = path.relative(source, sourceFile)
       .replace(/\.jsx?$/, ".tsx")
       .replace(/index\.tsx$/, "index.ts");
     const destination = path.join(target, relative);
+    const runtimePrefix = relative.includes(path.sep) ? "../" : "./";
     let content = await fs.readFile(sourceFile, "utf-8");
     content = content
       .replace(/\s*\/\/[#@]\s*sourceMappingURL=.*$/gm, "")
       .replace(/from "@nikala-ui\/core\/ui\//g, 'from "@/components/ui/')
       .replace(/from "@nikala-ui\/core"/g, 'from "@/components/ui"')
       .replace(/from "@nikala-ui\/hooks"/g, 'from "@/hooks"')
-      .replace(/from "\.\.\/\.\.\/client\/page-actions\.js"/g, 'from "./runtime/page-actions.js"')
-      .replace(/from "\.\.\/\.\.\/navigation\/repository-links\.js"/g, 'from "./runtime/repository-links.js"')
-      .replace(/from "\.\.\/\.\.\/search\/provider\.js"/g, 'from "./runtime/search-provider.js"')
-      .replace(/from "\.\.\/\.\.\/\.\.\/search\/provider\.js"/g, 'from "../runtime/search-provider.js"')
+      .replace(/from "(?:\.\.\/)+client\/page-actions\.js"/g, `from "${runtimePrefix}runtime/page-actions.js"`)
+      .replace(/from "(?:\.\.\/)+navigation\/repository-links\.js"/g, `from "${runtimePrefix}runtime/repository-links.js"`)
+      .replace(/from "(?:\.\.\/)+search\/provider\.js"/g, `from "${runtimePrefix}runtime/search-provider.js"`)
       .replace(/from "\.\.\/\.\.\/\.\.\/navigation\/sidebar-state\.js"/g, 'from "./sidebar-state.js"')
       .replace(/from "(?:\.\.\/)+types\.js"/g, 'from "@nikala-ui/folio"')
+      .replace(/import\("(?:\.\.\/)+types\.js"\)/g, 'import("@nikala-ui/folio")')
       .replace(/from "(\.\.\/|\.\/)[^"]+\.(?:jsx|tsx|js)"/g, (match) => match.replace(/\.(?:jsx|tsx|js)"$/, '"'))
       .replace(/export \* from "(\.\.\/|\.\/)[^"]+\.(?:jsx|tsx|js)"/g, (match) => match.replace(/\.(?:jsx|tsx|js)"$/, '"'));
     await fs.outputFile(destination, content, "utf-8");
   }
 
   const runtimeSources = [
-    ["../../client/page-actions.js", "runtime/page-actions.js"],
-    ["../../navigation/repository-links.js", "runtime/repository-links.js"],
-    ["../../search/provider.js", "runtime/search-provider.js"],
+    [["../../../src/client/page-actions.ts", "../../vendor/docs-src/client/page-actions.ts"], "runtime/page-actions.ts"],
+    [["../../../src/navigation/repository-links.ts", "../../vendor/docs-src/navigation/repository-links.ts"], "runtime/repository-links.ts"],
+    [["../../../src/search/provider.ts", "../../vendor/docs-src/search/provider.ts"], "runtime/search-provider.ts"],
   ] as const;
-  for (const [relativeSource, relativeDestination] of runtimeSources) {
-    const sourceFile = path.resolve(commandDir, relativeSource);
-    if (!fs.existsSync(sourceFile)) continue;
+  for (const [relativeSources, relativeDestination] of runtimeSources) {
+    const sourceFile = relativeSources
+      .map((relativeSource) => path.resolve(commandDir, relativeSource))
+      .find((candidate) => fs.existsSync(candidate));
+    if (!sourceFile) continue;
     const destination = path.join(target, relativeDestination);
     const content = (await fs.readFile(sourceFile, "utf-8"))
       .replace(/from "\.\.\/types\.js"/g, 'from "@nikala-ui/folio"');
@@ -251,7 +261,7 @@ async function copyCustomTheme(root: string): Promise<void> {
 
   const navigationCandidates = [
     path.resolve(commandDir, "../../../src/navigation/sidebar-state.ts"),
-    path.resolve(commandDir, "../../navigation/sidebar-state.js"),
+    path.resolve(commandDir, "../../vendor/docs-src/navigation/sidebar-state.ts"),
   ];
   const navigationSource = navigationCandidates.find((candidate) => fs.existsSync(candidate));
   if (navigationSource) {
@@ -279,10 +289,14 @@ async function copyDefaultAssets(root: string): Promise<void> {
 }
 
 async function writeProjectFiles(root: string, registryDependencies: string[]): Promise<void> {
+  const commandDir = path.dirname(fileURLToPath(import.meta.url));
   const docsConfigPath = path.join(root, "docs.config.ts");
-  if (!(await fs.pathExists(docsConfigPath))) await fs.outputFile(docsConfigPath, `export default {
+  if (!(await fs.pathExists(docsConfigPath))) await fs.outputFile(docsConfigPath, `import { createI18nPlugin } from "./src/plugins/i18n/index.ts";
+
+export default {
+  plugins: [createI18nPlugin({ defaultLocale: "en", locales: ["en"] })],
   title: "My Project Docs",
-  description: "Documentation built with Folio and SolidJS",
+  description: "Documentation built with Folio",
   favicon: "/favicon.ico",
   contentDir: "docs",
   css: "src/index.css",
@@ -292,6 +306,17 @@ async function writeProjectFiles(root: string, registryDependencies: string[]): 
   search: { enabled: true },
 };
 `, "utf-8");
+  const localeTemplate = path.resolve(commandDir, "../../templates/locales/en.json");
+  const localePath = path.join(root, "locales/en.json");
+  if (!(await fs.pathExists(localePath)) && await fs.pathExists(localeTemplate)) {
+    await fs.ensureDir(path.dirname(localePath));
+    await fs.copyFile(localeTemplate, localePath);
+  }
+  const environmentTemplate = path.resolve(commandDir, "../../templates/env.d.ts");
+  const environmentPath = path.join(root, "src/env.d.ts");
+  if (!(await fs.pathExists(environmentPath)) && await fs.pathExists(environmentTemplate)) {
+    await fs.copyFile(environmentTemplate, environmentPath);
+  }
   const nikalaConfigPath = path.join(root, "nikala.config.json");
   if (!(await fs.pathExists(nikalaConfigPath))) {
     await fs.writeJson(nikalaConfigPath, {
@@ -307,7 +332,6 @@ async function writeProjectFiles(root: string, registryDependencies: string[]): 
     }, { spaces: 2 });
   }
   const packagePath = path.join(root, "package.json");
-  const commandDir = path.dirname(fileURLToPath(import.meta.url));
   const docsPackageRoot = path.resolve(commandDir, "../../..");
   const workspaceRoot = path.resolve(docsPackageRoot, "../..");
   const workspaceManifestPath = path.join(workspaceRoot, "package.json");
@@ -320,7 +344,12 @@ async function writeProjectFiles(root: string, registryDependencies: string[]): 
     private: true,
     type: "module",
   scripts: { dev: "bunx @nikala-ui/folio dev", build: "bunx @nikala-ui/folio build", preview: "bunx @nikala-ui/folio preview" },
-    dependencies: {},
+    dependencies: { "fs-extra": "^11.3.6" },
+    devDependencies: {
+      "@types/fs-extra": "latest",
+      "@types/node": "latest",
+      typescript: "latest",
+    },
   };
   const existingPackageJson = await fs.pathExists(packagePath) ? await fs.readJson(packagePath) : {};
   const packageJson = {
@@ -348,9 +377,13 @@ async function writeProjectFiles(root: string, registryDependencies: string[]): 
       .filter((dependency) => !packageJson.dependencies?.[dependency])
       .map((dependency) => [dependency, "latest"])),
   };
+  packageJson.devDependencies = {
+    ...defaultPackageJson.devDependencies,
+    ...existingPackageJson.devDependencies,
+  };
   await fs.writeJson(packagePath, packageJson, { spaces: 2 });
   await fs.outputFile(path.join(root, "tsconfig.json"), JSON.stringify({
-    compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "preserve", jsxImportSource: "solid-js", strict: true, skipLibCheck: true, paths: { "@/*": ["./src/*"], "@/components/*": ["./src/components/*"], "@/components/ui/*": ["./src/components/ui/*"], "@/hooks/*": ["./src/hooks/*"], "@/plugins/*": ["./src/plugins/*"] } },
+    compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", jsx: "preserve", jsxImportSource: "solid-js", allowImportingTsExtensions: true, strict: true, skipLibCheck: true, paths: { "@/*": ["./src/*"], "@/components/*": ["./src/components/*"], "@/components/ui/*": ["./src/components/ui/*"], "@/hooks/*": ["./src/hooks/*"], "@/plugins/*": ["./src/plugins/*"] } },
     include: ["src/**/*", "docs.config.ts"],
   }, null, 2) + "\n", "utf-8");
 }
