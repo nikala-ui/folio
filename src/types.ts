@@ -123,7 +123,16 @@ export interface ShikiConfig {
     light?: string;
     dark?: string;
   };
+  /** Allowlist of built-in language ids. Custom languages are not affected. */
   langs?: string[];
+  /**
+   * Additional languages as Shiki language registrations (TextMate grammars
+   * with `name`, `scopeName`, `patterns` and optional `aliases`). Code fences
+   * whose language matches a `name` or alias use the grammar. Names and
+   * aliases must not collide with built-in languages or each other. Grammars
+   * must be plain JSON data and are loaded lazily.
+   */
+  customLangs?: import("shiki").LanguageRegistration[];
 }
 
 export interface DocsSeoConfig {

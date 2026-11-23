@@ -7,6 +7,11 @@ declare module "virtual:folio-config" {
   export default config;
 }
 
+declare module "virtual:folio-highlight-languages" {
+  const languages: Array<{ name: string; aliases?: string[]; [key: string]: unknown }>;
+  export default languages;
+}
+
 declare module "virtual:folio-tree" {
   export const pages: any[];
   export const tree: any[];

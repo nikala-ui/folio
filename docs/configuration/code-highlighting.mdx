@@ -1,6 +1,6 @@
 ---
 title: Syntax highlighting
-description: Configure Shiki themes and the language allowlist.
+description: Configure Shiki themes, the language allowlist, and custom languages.
 # order: 4
 ---
 
@@ -20,3 +20,51 @@ Only languages listed in `shiki.langs` are enabled for highlighting. They are
 loaded on demand, while unsupported or unlisted languages safely render as
 plain text. Keep the list limited to formats used by the site so production
 bundles stay small.
+
+## Custom languages
+
+Use `shiki.customLangs` to highlight languages Folio does not bundle. Each
+entry is a Shiki language registration: a TextMate grammar with a `name`, a
+`scopeName`, `patterns`, and optional `aliases`.
+
+```ts
+import { demoGrammar } from "./src/demo-grammar.ts";
+
+export default {
+  shiki: {
+    customLangs: [demoGrammar],
+  },
+};
+```
+
+```ts
+// src/demo-grammar.ts
+export const demoGrammar = {
+  name: "demo",
+  scopeName: "source.demo",
+  aliases: ["dm"],
+  patterns: [{ name: "keyword.control.demo", match: "\\b(?:fn|let)\\b" }],
+};
+```
+
+A fenced block whose language matches a registered `name` or alias, such as
+`demo` or `dm`, is highlighted with the grammar in the configured themes and
+labelled with the language name. Matching is case-insensitive.
+
+- Custom languages are not limited by `shiki.langs`, which only filters
+  built-in languages.
+- Built-in languages and unknown languages behave as before; unknown languages
+  render as plain text.
+- Grammars must be plain JSON data. They are loaded on demand and are kept out
+  of the initial client bundle.
+- `CodeBlock` components that highlight code in the browser use the same
+  registrations, with the default `github-light` and `github-dark` themes.
+
+Folio validates the registrations when the configuration loads and stops with a
+`[folio]` error for a missing `name`, `scopeName`, or `patterns` array, a name or
+alias that matches a built-in language or alias (for example `typescript` or
+`sh`), or a name, alias, or `scopeName` registered more than once:
+
+```text
+[folio] shiki.customLangs[1] ("typescript") uses "typescript", which is a built-in language or alias
+```
