@@ -10,7 +10,7 @@ import { serializeModuleValue } from "../module-serialization.js";
 import type { FolioBuildSession } from "./lifecycle.js";
 import { collectComponentExports, collectStaticComponentFiles, getComponentSourceDir, toLucideComponentName } from "./components.js";
 import {
-  RESOLVED_COMPONENTS_ID, RESOLVED_CONFIG_ID, RESOLVED_ICONS_ID, RESOLVED_ROUTES_ID,
+  RESOLVED_COMPONENTS_ID, RESOLVED_CONFIG_ID, RESOLVED_HIGHLIGHT_LANGUAGES_ID, RESOLVED_ICONS_ID, RESOLVED_ROUTES_ID,
   RESOLVED_SHIKI_ID, RESOLVED_SOURCES_ID, RESOLVED_THEME_ID, RESOLVED_TREE_ID,
 } from "./constants.js";
 
@@ -54,8 +54,14 @@ export const bundledLanguages = {};
 export const bundledThemes = {};
 export default { createHighlighter, bundledLanguages, bundledThemes };
 `;
+    if (id === RESOLVED_HIGHLIGHT_LANGUAGES_ID) {
+      return `export default ${serializeModuleValue(resolvedConfig.shiki?.customLangs ?? [])};`;
+    }
     if (id === RESOLVED_CONFIG_ID) {
-      const serializedConfig = serializeModuleValue(resolvedConfig);
+      // Grammars load lazily through virtual:folio-highlight-languages, so keep
+      // them out of the eagerly loaded client config.
+      const { customLangs: _customLangs, ...clientShiki } = resolvedConfig.shiki ?? {};
+      const serializedConfig = serializeModuleValue(resolvedConfig.shiki ? { ...resolvedConfig, shiki: clientShiki } : resolvedConfig);
       const runtime = getSearchAdapterRuntime(resolvedConfig.search?.provider);
       if (!runtime) return `export default ${serializedConfig};`;
       return `import * as searchRuntime from ${serializeModuleValue(runtime.module)};

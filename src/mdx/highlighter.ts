@@ -7,11 +7,14 @@ import {
 import { createBundledHighlighter } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import type { ShikiConfig } from "../types.js";
+import { languageLoaders, normalizeLangAlias } from "./builtin-languages.js";
+import { createCustomLanguageIndex, type CustomLanguageIndex } from "./custom-languages.js";
 
 let highlighterPromise: Promise<Highlighter> | null = null;
 let activeShikiConfig: ShikiConfig | null = null;
 let activeShikiConfigKey: string | null = null;
 let activeAllowedLanguages: Set<string> | null = null;
+let activeCustomLanguages: CustomLanguageIndex = new Map();
 
 const DEFAULT_BASE_LANGS: BundledLanguage[] = [
   "typescript",
@@ -32,31 +35,6 @@ const DEFAULT_BASE_LANGS: BundledLanguage[] = [
   "diff",
 ];
 
-const languageLoaders = {
-  typescript: () => import("@shikijs/langs/typescript"),
-  javascript: () => import("@shikijs/langs/javascript"),
-  tsx: () => import("@shikijs/langs/tsx"),
-  jsx: () => import("@shikijs/langs/jsx"),
-  bash: () => import("@shikijs/langs/shellscript"),
-  json: () => import("@shikijs/langs/json"),
-  css: () => import("@shikijs/langs/css"),
-  html: () => import("@shikijs/langs/html"),
-  markdown: () => import("@shikijs/langs/markdown"),
-  mdx: () => import("@shikijs/langs/mdx"),
-  rust: () => import("@shikijs/langs/rust"),
-  python: () => import("@shikijs/langs/python"),
-  yaml: () => import("@shikijs/langs/yaml"),
-  toml: () => import("@shikijs/langs/toml"),
-  sql: () => import("@shikijs/langs/sql"),
-  diff: () => import("@shikijs/langs/diff"),
-  c: () => import("@shikijs/langs/c"),
-  cpp: () => import("@shikijs/langs/cpp"),
-  go: () => import("@shikijs/langs/go"),
-  mermaid: () => import("@shikijs/langs/mermaid"),
-  dockerfile: () => import("@shikijs/langs/docker"),
-  zig: () => import("@shikijs/langs/zig"),
-} as const;
-
 const DEFAULT_LIGHT_THEME: BundledTheme = "github-light";
 const DEFAULT_DARK_THEME: BundledTheme = "github-dark";
 
@@ -72,6 +50,7 @@ const createDocsHighlighter = createBundledHighlighter({
 });
 
 export function configureDocsHighlighter(config: ShikiConfig): void {
+  activeCustomLanguages = createCustomLanguageIndex(config.customLangs);
   activeShikiConfig = config;
   activeShikiConfigKey = JSON.stringify(config);
   activeAllowedLanguages = config.langs
@@ -104,11 +83,24 @@ export async function getDocsHighlighter(config?: ShikiConfig): Promise<Highligh
 
 /**
  * Ensures a language is loaded in Shiki on-demand.
- * If the language is bundled in Shiki, loads it dynamically.
+ * Custom languages from `shiki.customLangs` are matched first by name or alias;
+ * otherwise a bundled language is loaded dynamically.
  * Returns the resolved language identifier or "text" as fallback.
  */
 export async function ensureLanguage(highlighter: Highlighter, rawLang: string): Promise<string> {
   const normalized = normalizeLangAlias(rawLang);
+
+  const custom = activeCustomLanguages.get(normalized);
+  if (custom) {
+    if (highlighter.getLoadedLanguages().includes(custom.name)) return custom.name;
+    try {
+      await highlighter.loadLanguage(custom);
+      return custom.name;
+    } catch (err) {
+      console.warn(`[folio] Failed to load custom Shiki language "${custom.name}":`, err);
+      return "text";
+    }
+  }
 
   if (!normalized || normalized === "text" || normalized === "txt" || normalized === "plain") {
     return "text";
@@ -165,34 +157,6 @@ export async function ensureTheme(highlighter: Highlighter, themeName: string): 
   }
 
   return DEFAULT_DARK_THEME;
-}
-
-function normalizeLangAlias(lang: string): string {
-  const l = lang.toLowerCase().trim();
-  switch (l) {
-    case "shell":
-    case "sh":
-    case "zsh":
-      return "bash";
-    case "js":
-      return "javascript";
-    case "ts":
-      return "typescript";
-    case "py":
-      return "python";
-    case "rs":
-      return "rust";
-    case "yml":
-      return "yaml";
-    case "md":
-      return "markdown";
-    case "rb":
-      return "ruby";
-    case "cs":
-      return "csharp";
-    default:
-      return l;
-  }
 }
 
 export interface HighlightOptions {

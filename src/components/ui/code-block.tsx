@@ -14,10 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { createClipboard } from "@/hooks/create-clipboard";
+import { highlightOnClient } from "./code-highlighter";
+import { escapeHtml, highlightCliCommand, transformCommandForPm, type CodeBlockPackageManager } from "./code-block-commands";
 import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 import { cn } from "@/lib/cn";
 
-export type CodeBlockPackageManager = "bunx" | "npx" | "pnpm" | "yarn";
+export type { CodeBlockPackageManager };
 
 export interface CodeBlockProps extends JSX.HTMLAttributes<HTMLDivElement> {
   /** The raw source code text to display and copy */
@@ -37,118 +39,6 @@ export interface CodeBlockProps extends JSX.HTMLAttributes<HTMLDivElement> {
   /** Whether the copy button is enabled. Defaults to true. */
   copyable?: boolean;
   class?: string;
-}
-
-let shikiHighlighterPromise: Promise<any> | null = null;
-
-async function getShikiHighlighter() {
-  if (typeof window === "undefined") return null;
-  if (!shikiHighlighterPromise) {
-    try {
-      const [{ createBundledHighlighter }, { createJavaScriptRegexEngine }] = await Promise.all([
-        import("shiki/core"),
-        import("shiki/engine/javascript"),
-      ]);
-      const createHighlighter = createBundledHighlighter({
-        langs: {
-          typescript: () => import("@shikijs/langs/typescript"),
-          javascript: () => import("@shikijs/langs/javascript"),
-          tsx: () => import("@shikijs/langs/tsx"),
-          jsx: () => import("@shikijs/langs/jsx"),
-          bash: () => import("@shikijs/langs/shellscript"),
-          json: () => import("@shikijs/langs/json"),
-          css: () => import("@shikijs/langs/css"),
-          html: () => import("@shikijs/langs/html"),
-          rust: () => import("@shikijs/langs/rust"),
-        },
-        themes: {
-          "github-dark": () => import("@shikijs/themes/github-dark"),
-          "github-light": () => import("@shikijs/themes/github-light"),
-        },
-        engine: () => createJavaScriptRegexEngine(),
-      });
-      shikiHighlighterPromise = createHighlighter({
-        themes: ["github-dark", "github-light"],
-        langs: [
-          "typescript",
-          "javascript",
-          "tsx",
-          "jsx",
-          "bash",
-          "json",
-          "css",
-          "html",
-          "rust",
-        ],
-      });
-    } catch (e) {
-      console.warn("Failed to load Shiki highlighter", e);
-      return null;
-    }
-  }
-  return shikiHighlighterPromise;
-}
-
-function highlightCliCommand(code: string): string {
-  const trimmed = code.trim();
-  const parts = trimmed.split(/\s+/);
-  if (parts.length === 0) return code;
-
-  const isRunner = ["bunx", "npx", "pnpm", "yarn", "bun", "npm", "cargo", "deno"].includes(parts[0]);
-  if (!isRunner) return `<span class="text-foreground">${escapeHtml(trimmed)}</span>`;
-
-  return parts
-    .map((part, index) => {
-      if (index === 0) {
-        return `<span class="text-amber-500 dark:text-amber-400 font-bold">${escapeHtml(part)}</span>`;
-      }
-      if (part.startsWith("-")) {
-        return `<span class="text-purple-400 dark:text-purple-300">${escapeHtml(part)}</span>`;
-      }
-      if (part.startsWith("@")) {
-        return `<span class="text-emerald-400 dark:text-emerald-300 font-medium">${escapeHtml(part)}</span>`;
-      }
-      if (index === 1 && ["add", "install", "init", "create", "run"].includes(part)) {
-        return `<span class="text-sky-500 dark:text-sky-400 font-medium">${escapeHtml(part)}</span>`;
-      }
-      return `<span class="text-foreground/90">${escapeHtml(part)}</span>`;
-    })
-    .join(" ");
-}
-
-function transformCommandForPm(cmd: string, pm: CodeBlockPackageManager): string {
-  const trimmed = cmd.trim();
-  const runners = ["bunx", "npx", "pnpm dlx", "pnpm", "yarn dlx", "yarn", "bun", "npm"];
-
-  let base = trimmed;
-  for (const r of runners) {
-    if (trimmed.startsWith(r)) {
-      base = trimmed.slice(r.length).trim();
-      break;
-    }
-  }
-
-  switch (pm) {
-    case "bunx":
-      return `bunx ${base}`;
-    case "npx":
-      return `npx ${base}`;
-    case "pnpm":
-      return `pnpm dlx ${base}`;
-    case "yarn":
-      return `yarn dlx ${base}`;
-    default:
-      return `${pm} ${base}`;
-  }
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
@@ -203,25 +93,8 @@ export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
       return;
     }
 
-    // Attempt Shiki highlighting
-    getShikiHighlighter().then((highlighter) => {
-      if (highlighter) {
-        try {
-          const html = highlighter.codeToHtml(codeStr, {
-            lang: lang === "js" ? "javascript" : lang === "ts" ? "typescript" : lang,
-            themes: {
-              light: "github-light",
-              dark: "github-dark",
-            },
-          });
-          setHighlightedHtml(html);
-          return;
-        } catch (err) {
-          console.warn(`Shiki failed for language: ${lang}`, err);
-        }
-      }
-      // Fallback
-      setHighlightedHtml(`<pre class="text-foreground/90"><code>${escapeHtml(codeStr)}</code></pre>`);
+    highlightOnClient(codeStr, lang).then((html) => {
+      setHighlightedHtml(html ?? `<pre class="text-foreground/90"><code>${escapeHtml(codeStr)}</code></pre>`);
     });
   });
 

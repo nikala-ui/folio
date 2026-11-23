@@ -7,9 +7,9 @@ import { resolveDefaultThemeMode } from "../../theme-mode.js";
 import type { DocsConfig } from "../../types.js";
 import { createFolioBuildSession, type FolioBuildSession } from "./lifecycle.js";
 import {
-  CONFIG_FILENAMES, RESOLVED_CONFIG_ID, RESOLVED_ICONS_ID, RESOLVED_ROUTES_ID,
+  CONFIG_FILENAMES, RESOLVED_CONFIG_ID, RESOLVED_HIGHLIGHT_LANGUAGES_ID, RESOLVED_ICONS_ID, RESOLVED_ROUTES_ID,
   RESOLVED_SHIKI_ID, RESOLVED_SOURCES_ID, RESOLVED_THEME_ID, RESOLVED_TREE_ID,
-  VIRTUAL_CONFIG_ID, VIRTUAL_COMPONENTS_ID, VIRTUAL_ICONS_ID, VIRTUAL_ROUTES_ID,
+  VIRTUAL_CONFIG_ID, VIRTUAL_COMPONENTS_ID, VIRTUAL_HIGHLIGHT_LANGUAGES_ID, VIRTUAL_ICONS_ID, VIRTUAL_ROUTES_ID,
   VIRTUAL_SOURCES_ID, VIRTUAL_THEME_ID, VIRTUAL_TREE_ID,
 } from "./constants.js";
 import { escapeHtmlAttribute, getServerModuleDir, getTailwindSourceDirectives } from "./styles.js";
@@ -74,6 +74,7 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
         [VIRTUAL_ROUTES_ID]: RESOLVED_ROUTES_ID, [VIRTUAL_SOURCES_ID]: RESOLVED_SOURCES_ID,
         [VIRTUAL_COMPONENTS_ID]: "\0" + VIRTUAL_COMPONENTS_ID, [VIRTUAL_ICONS_ID]: RESOLVED_ICONS_ID,
         [RESOLVED_ICONS_ID]: RESOLVED_ICONS_ID, [VIRTUAL_THEME_ID]: RESOLVED_THEME_ID,
+        [VIRTUAL_HIGHLIGHT_LANGUAGES_ID]: RESOLVED_HIGHLIGHT_LANGUAGES_ID,
       };
       return virtualIds[id] || null;
     },
