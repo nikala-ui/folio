@@ -89,7 +89,7 @@ export const DocsSearchDialog: Component<DocsSearchDialogProps> = (props) => {
                 <a
                   href="https://www.algolia.com"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   class="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   aria-label={`${siteLocale.t("search.by")} Algolia`}
                 >

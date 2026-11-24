@@ -13,6 +13,7 @@
   "navigation.collapse": "ჩაკეცვა",
   "navigation.expand": "გაშლა",
   "navigation.breadcrumb": "ნავიგაციის ბილიკი",
+  "navigation.opensInNewTab": "(იხსნება ახალ ჩანართში)",
   "actions.viewSource": "წყაროს ნახვა",
   "actions.copyPage": "გვერდის კოპირება",
   "actions.copyAsMarkdown": "Markdown-ის სახით კოპირება",

@@ -91,7 +91,7 @@ export function nikalaDocsPlugin(options: NikalaDocsPluginOptions = {}): Plugin 
         return { code: `@import "tailwindcss";\n${directives}\n${code.replace('@import "tailwindcss";', "")}`, map: null };
       }
       if (/\.(md|mdx)$/.test(id)) {
-        const result = await compileMdx(code, { filePath: id, development: !Boolean(transformOptions?.ssr) && process.env.NODE_ENV !== "production", shiki: resolvedConfig.shiki });
+        const result = await compileMdx(code, { filePath: id, development: !Boolean(transformOptions?.ssr) && process.env.NODE_ENV !== "production", shiki: resolvedConfig.shiki, siteUrl: resolvedConfig.siteUrl });
         return { code: result.code, map: null };
       }
       return null;

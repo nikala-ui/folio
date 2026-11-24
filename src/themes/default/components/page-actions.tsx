@@ -42,7 +42,7 @@ export const PageActions: Component<PageActionsProps> = (props) => {
           <a
             href={url()}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             class={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shrink-0")}
           >
             {siteLocale.t("actions.viewSource")}
@@ -54,7 +54,7 @@ export const PageActions: Component<PageActionsProps> = (props) => {
           <a
             href={action.href}
             target={action.external ? "_blank" : undefined}
-            rel={action.external ? "noreferrer" : undefined}
+            rel={action.external ? "noopener noreferrer" : undefined}
             class={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shrink-0")}
           >
             {action.label}
@@ -90,7 +90,7 @@ export const PageActions: Component<PageActionsProps> = (props) => {
             <Show when={props.aiProviders.length > 0}>
               <For each={props.aiProviders}>
                 {(provider) => (
-                  <DropdownMenuItem as="a" href={providerUrl(provider)} target="_blank" rel="noreferrer">
+                  <DropdownMenuItem as="a" href={providerUrl(provider)} target="_blank" rel="noopener noreferrer">
                     <ExternalLink class="mr-2 size-4" />
                     {siteLocale.t("actions.openInProvider", { provider: provider.name })}
                   </DropdownMenuItem>

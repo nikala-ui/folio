@@ -148,3 +148,28 @@ export default {
   },
 };
 ```
+
+## External links
+
+Links that point to another origin open in a new tab with `target="_blank"` and
+`rel="noopener noreferrer"`. A link is external when its `href` is an absolute
+`http:` or `https:` URL, or a protocol-relative `//host` URL, on an origin other
+than the site's own. Relative paths, `#hash` links, same-origin absolute URLs and
+other schemes such as `mailto:` or `tel:` keep opening in the same tab and use
+client-side navigation. Links that open a new tab also carry visually hidden
+text, `(opens in a new tab)`, for assistive technology; it comes from the
+`navigation.opensInNewTab` site translation.
+
+The rule applies to the navbar and its mobile menu, the logo link, the previous
+and next page links, Markdown links and raw `<a href>` elements in MDX content.
+Sidebar entries are always internal documentation routes.
+
+- The site's own origin is the origin of `siteUrl`. Without `siteUrl`, the
+  browser's current origin is used, and server-rendered markup treats every
+  absolute `http(s)` URL as external until the page hydrates. Set `siteUrl` so
+  absolute links to your own site stay in the same tab from the first render.
+- An explicit `external` on a navbar item wins over the rule: `external: true`
+  opens even a relative path in a new tab, and `external: false` keeps an
+  absolute URL in the same tab.
+- A raw `<a>` in MDX that already sets `target` is left unchanged. Raw anchors
+  do not get the hidden text, so describe them in the link text.

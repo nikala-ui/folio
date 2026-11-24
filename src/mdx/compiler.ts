@@ -6,6 +6,7 @@ import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import { extractToc } from "../core/content-scanner.js";
 import type { Frontmatter, TocItem } from "../types.js";
+import { rehypeExternalLinks } from "./rehype-external-links.js";
 import { rehypeShiki } from "./rehype-shiki.js";
 
 export interface CompileMdxResult {
@@ -18,6 +19,8 @@ export interface CompileMdxOptions {
   filePath?: string;
   development?: boolean;
   shiki?: import("../types.js").ShikiConfig;
+  /** The site's `siteUrl`; raw MDX links to other origins open in a new tab. */
+  siteUrl?: string;
 }
 
 export async function compileMdx(
@@ -45,6 +48,7 @@ export async function compileMdx(
         },
       ],
       [rehypeShiki, options.shiki],
+      [rehypeExternalLinks, { siteUrl: options.siteUrl }],
     ],
   });
 

@@ -1,4 +1,5 @@
 import { Show, type Component } from "solid-js";
+import { ExternalLinkHint, useExternalLink } from "@/components/ui/external-link";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/cn";
 import { SidebarHeader as UiSidebarHeader, SidebarMenuButton } from "@/components/ui/sidebar";
@@ -10,10 +11,13 @@ export interface SidebarHeaderProps {
   subtitle?: string;
 }
 
-export const SidebarHeader: Component<SidebarHeaderProps> = (props) => (
+export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
+  const link = useExternalLink(() => props.logo?.href || "/");
+  return (
   <UiSidebarHeader class="h-14 box-border p-3 group-data-[collapsible=icon]:p-2">
     <SidebarMenuButton
       href={props.logo?.href || "/"}
+      {...link.attributes()}
       class={cn("h-8 w-full justify-between group-data-[collapsible=icon]:h-10")}
     >
       <div class="flex items-center gap-2.5 overflow-hidden">
@@ -25,6 +29,8 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => (
           <span class="truncate text-[10px] text-muted-foreground">{props.subtitle}</span>
         </div>
       </div>
+      <ExternalLinkHint external={link.external()} />
     </SidebarMenuButton>
   </UiSidebarHeader>
-);
+  );
+};

@@ -25,7 +25,7 @@ export const SidebarPromo: Component<SidebarPromoProps> = (props) => {
         <a
           href={props.promo.href}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           class={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 h-8 w-full gap-1.5 text-xs")}
         >
           {props.promo.cta || siteLocale.t("actions.learnMore")}
