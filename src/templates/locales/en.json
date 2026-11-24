@@ -13,6 +13,7 @@
   "navigation.collapse": "Collapse",
   "navigation.expand": "Expand",
   "navigation.breadcrumb": "Breadcrumb",
+  "navigation.opensInNewTab": "(opens in a new tab)",
   "actions.viewSource": "View source",
   "actions.copyPage": "Copy page",
   "actions.copyAsMarkdown": "Copy as Markdown",

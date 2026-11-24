@@ -2,6 +2,7 @@ import { splitProps, type JSX } from "solid-js";
 import { Plus } from "lucide-solid";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { ExternalLinkHint, useExternalLink } from "./ui/external-link.jsx";
 // Resolved by the docs plugin to lazy wrappers around the consumer's local
 // component sources. The source modules load only when an MDX component is
 // actually rendered.
@@ -53,9 +54,21 @@ export function MdxLi(props: HtmlProps<HTMLLIElement>) {
   const [local, rest] = splitProps(props, ["class", "children"]);
   return <li class={cn("leading-relaxed", local.class)} {...rest}>{local.children}</li>;
 }
+/** Markdown and raw `<a>` links. Links to other origins open in a new tab; an explicit `target` or `rel` in the content wins. */
 export function MdxA(props: JSX.AnchorHTMLAttributes<HTMLAnchorElement>) {
-  const [local, rest] = splitProps(props, ["class", "children"]);
-  return <a class={cn("font-medium text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors", local.class)} {...rest}>{local.children}</a>;
+  const [local, rest] = splitProps(props, ["class", "children", "target", "rel"]);
+  const link = useExternalLink(() => rest.href);
+  return (
+    <a
+      class={cn("font-medium text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors", local.class)}
+      {...rest}
+      target={local.target ?? link.attributes().target}
+      rel={local.rel ?? link.attributes().rel}
+    >
+      {local.children}
+      <ExternalLinkHint external={link.external() && local.target !== "_self"} />
+    </a>
+  );
 }
 export function MdxBlockquote(props: HtmlProps<HTMLQuoteElement>) {
   const [local, rest] = splitProps(props, ["class", "children"]);

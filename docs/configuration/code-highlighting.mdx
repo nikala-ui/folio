@@ -1,6 +1,6 @@
 ---
 title: Syntax highlighting
-description: Configure Shiki themes, the language allowlist, and custom languages.
+description: Configure Shiki themes, custom theme objects, the language allowlist, and custom languages.
 # order: 4
 ---
 
@@ -20,6 +20,64 @@ Only languages listed in `shiki.langs` are enabled for highlighting. They are
 loaded on demand, while unsupported or unlisted languages safely render as
 plain text. Keep the list limited to formats used by the site so production
 bundles stay small.
+
+## Custom themes
+
+`shiki.themes.light` and `shiki.themes.dark` each accept either the name of a
+bundled Shiki theme, as above, or a full Shiki theme object. Use an object when
+a bundled theme does not colour a scope the way your site needs, for example the
+scopes of a custom language. Extend a bundled theme by spreading it and adding
+`tokenColors`:
+
+```ts
+import githubLight from "@shikijs/themes/github-light";
+import githubDark from "@shikijs/themes/github-dark";
+
+const accent = (name: string, foreground: string) => ({
+  scope: [name],
+  settings: { foreground },
+});
+
+export default {
+  shiki: {
+    themes: {
+      light: {
+        ...githubLight,
+        name: "site-light",
+        tokenColors: [...githubLight.tokenColors, accent("keyword.control.demo", "#7c3aed")],
+      },
+      dark: {
+        ...githubDark,
+        name: "site-dark",
+        tokenColors: [...githubDark.tokenColors, accent("keyword.control.demo", "#a78bfa")],
+      },
+    },
+  },
+};
+```
+
+A theme object is a Shiki theme registration: a `name`, a `type` (`"light"` or
+`"dark"`), `colors`, and `tokenColors` (or `settings`). Light and dark can mix
+a name with an object.
+
+- Theme objects must be plain JSON data. Folio loads them on the server while
+  compiling MDX and, lazily, in `CodeBlock` components that highlight code in
+  the browser; they are kept out of the initial client bundle.
+- `CodeBlock` components that highlight in the browser use a theme object for
+  each mode that has one and the default `github-light` and `github-dark`
+  themes for a mode configured by name.
+- Theme names behave exactly as before.
+
+Folio validates `shiki.themes` when the configuration loads and stops with a
+`[folio]` error for a value that is neither a name nor an object, an object
+without a non-empty `name`, a `name` that matches a bundled theme (such as
+`github-light`), light and dark objects that share a `name`, a `type` other
+than `light` or `dark`, or `tokenColors`, `settings` or `colors` of the wrong
+shape:
+
+```text
+[folio] shiki.themes.light ("github-light") uses "github-light", which is a bundled Shiki theme name; choose a different name
+```
 
 ## Custom languages
 
@@ -58,7 +116,8 @@ labelled with the language name. Matching is case-insensitive.
 - Grammars must be plain JSON data. They are loaded on demand and are kept out
   of the initial client bundle.
 - `CodeBlock` components that highlight code in the browser use the same
-  registrations, with the default `github-light` and `github-dark` themes.
+  registrations, with the default `github-light` and `github-dark` themes
+  unless the site configures [custom themes](#custom-themes).
 
 Folio validates the registrations when the configuration loads and stops with a
 `[folio]` error for a missing `name`, `scopeName`, or `patterns` array, a name or
@@ -68,3 +127,79 @@ alias that matches a built-in language or alias (for example `typescript` or
 ```text
 [folio] shiki.customLangs[1] ("typescript") uses "typescript", which is a built-in language or alias
 ```
+
+## Code tabs
+
+`CodeTabs` shows several code fences as tabs in one code block. Put the fences
+inside the component and label each one with `title="..."` in the fence meta:
+
+````mdx
+<CodeTabs syncKey="language">
+
+```ts title="TypeScript"
+const answer: number = 42;
+```
+
+```js title="JavaScript"
+const answer = 42;
+```
+
+</CodeTabs>
+````
+
+Leave a blank line between the tags and the fences. A fence without a `title`
+is labelled with its language, and two tabs of one group cannot have the same
+label.
+
+<CodeTabs syncKey="language">
+
+```ts title="TypeScript"
+const answer: number = 42;
+```
+
+```js title="JavaScript"
+const answer = 42;
+```
+
+</CodeTabs>
+
+Each tab keeps the language you gave its fence, so highlighting is exactly what
+a standalone fence would get. Nothing is rewritten, no `$` prompt is added, and
+the copy button copies the code of the active tab. The tab list follows the
+keyboard conventions of the ARIA tabs pattern: Tab moves into the list, and the
+arrow keys, Home, and End move between tabs.
+
+### Syncing tabs
+
+Give groups the same `syncKey` and they switch together. Choose a tab in this
+group and the one below follows:
+
+<CodeTabs syncKey="language">
+
+```ts title="TypeScript"
+export const greeting: string = "Hello";
+```
+
+```js title="JavaScript"
+export const greeting = "Hello";
+```
+
+</CodeTabs>
+
+The choice is remembered in the browser's `localStorage` under
+`folio:code-tabs:<syncKey>`, so it also applies on other pages and after a
+reload. A group that has no tab with the remembered label shows its first tab
+and leaves the stored choice alone. The first tab is also what the server
+renders and what shows when storage is unavailable. Groups without a `syncKey`
+switch on their own and remember nothing.
+
+| Prop | Description |
+| --- | --- |
+| `syncKey` | Groups on the page with the same key switch together and remember the choice. |
+| `label` | Accessible name of the tab list. |
+| `copyable` | Set to `false` to hide the copy button. Defaults to `true`. |
+
+`CodeTabs` is copied into your project by `folio init` as
+`src/components/ui/code-tabs.tsx`. In a project that was created earlier, copy
+that file from the Folio package to use it. `PackageManagerTabs` is a separate
+component for package manager commands and does not use it.

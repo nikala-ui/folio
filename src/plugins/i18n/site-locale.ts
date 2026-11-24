@@ -18,6 +18,7 @@ export const SITE_TRANSLATION_KEYS = [
   "navigation.collapse",
   "navigation.expand",
   "navigation.breadcrumb",
+  "navigation.opensInNewTab",
   "actions.viewSource",
   "actions.copyPage",
   "actions.copyAsMarkdown",

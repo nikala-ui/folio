@@ -6,9 +6,10 @@ import {
 } from "shiki";
 import { createBundledHighlighter } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
-import type { ShikiConfig } from "../types.js";
+import type { ShikiConfig, ShikiThemeInput } from "../types.js";
 import { languageLoaders, normalizeLangAlias } from "./builtin-languages.js";
 import { createCustomLanguageIndex, type CustomLanguageIndex } from "./custom-languages.js";
+import { createCustomThemes, getThemeName } from "./custom-themes.js";
 
 let highlighterPromise: Promise<Highlighter> | null = null;
 let activeShikiConfig: ShikiConfig | null = null;
@@ -51,6 +52,7 @@ const createDocsHighlighter = createBundledHighlighter({
 
 export function configureDocsHighlighter(config: ShikiConfig): void {
   activeCustomLanguages = createCustomLanguageIndex(config.customLangs);
+  createCustomThemes(config.themes);
   activeShikiConfig = config;
   activeShikiConfigKey = JSON.stringify(config);
   activeAllowedLanguages = config.langs
@@ -128,9 +130,20 @@ export async function ensureLanguage(highlighter: Highlighter, rawLang: string):
 }
 
 /**
- * Ensures a theme is loaded in Shiki on-demand.
+ * Ensures a theme is loaded in Shiki on-demand. A Shiki theme object from
+ * `shiki.themes` is registered under its own `name`; a string is loaded as a
+ * bundled theme.
  */
-export async function ensureTheme(highlighter: Highlighter, themeName: string): Promise<string> {
+export async function ensureTheme(highlighter: Highlighter, theme: ShikiThemeInput): Promise<string> {
+  const name = getThemeName(theme);
+  if (typeof theme !== "string") {
+    if (!highlighter.getLoadedThemes().includes(name)) await highlighter.loadTheme(theme);
+    return name;
+  }
+  return ensureBundledTheme(highlighter, theme);
+}
+
+async function ensureBundledTheme(highlighter: Highlighter, themeName: string): Promise<string> {
   const loaded = highlighter.getLoadedThemes();
   if (loaded.includes(themeName)) {
     return themeName;
@@ -162,8 +175,8 @@ export async function ensureTheme(highlighter: Highlighter, themeName: string): 
 export interface HighlightOptions {
   lang?: string;
   filename?: string;
-  themeLight?: string;
-  themeDark?: string;
+  themeLight?: ShikiThemeInput;
+  themeDark?: ShikiThemeInput;
 }
 
 export async function highlightCode(code: string, options: HighlightOptions = {}): Promise<string> {
@@ -171,13 +184,8 @@ export async function highlightCode(code: string, options: HighlightOptions = {}
   const rawLang = options.lang || "text";
   const targetLang = await ensureLanguage(highlighter, rawLang);
 
-  const themeLight = options.themeLight
-    ? await ensureTheme(highlighter, options.themeLight)
-    : (activeShikiConfig?.themes?.light as BundledTheme) || DEFAULT_LIGHT_THEME;
-
-  const themeDark = options.themeDark
-    ? await ensureTheme(highlighter, options.themeDark)
-    : (activeShikiConfig?.themes?.dark as BundledTheme) || DEFAULT_DARK_THEME;
+  const themeLight = await ensureTheme(highlighter, options.themeLight || activeShikiConfig?.themes?.light || DEFAULT_LIGHT_THEME);
+  const themeDark = await ensureTheme(highlighter, options.themeDark || activeShikiConfig?.themes?.dark || DEFAULT_DARK_THEME);
 
   return highlighter.codeToHtml(code.trimEnd(), {
     lang: targetLang,

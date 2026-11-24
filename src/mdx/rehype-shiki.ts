@@ -66,6 +66,8 @@ export function rehypeShiki(config?: ShikiConfig) {
                   // Store raw code in data attribute for copy actions
                   highlightedPre.properties["data-code"] = codeText.trimEnd();
                   highlightedPre.properties["data-lang"] = targetLang;
+                  // The fence meta (for example `title="Linux"`) and the language as written, for plugins that run later.
+                  highlightedPre.data = { ...highlightedPre.data, meta: codeNode.data?.meta, rawLang };
 
                   // Add class to code element so MdxCode knows it is inside pre
                   const codeEl = highlightedPre.children?.find(

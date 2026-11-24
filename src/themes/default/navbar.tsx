@@ -13,9 +13,26 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { DocsSiteLanguageSwitcher } from "../../plugins/i18n/components/site-language-switcher.jsx";
 import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
+import { ExternalLinkHint, useExternalLink } from "@/components/ui/external-link";
 import { Logo } from "@/components/ui/logo";
 import { Search } from "lucide-solid";
 import type { DocsNavbarProps } from "../types.js";
+import type { NavItem } from "../../types.js";
+
+/** A top navigation link; absolute links to other origins open in a new tab unless `external` says otherwise. */
+const NavbarLink: Component<{ item: NavItem }> = (props) => {
+  const link = useExternalLink(() => props.item.href, () => props.item.external);
+  return (
+    <a
+      href={props.item.href}
+      {...link.attributes()}
+      class={buttonVariants({ variant: "ghost", size: "sm" }) + " shrink-0 whitespace-nowrap text-xs"}
+    >
+      {props.item.title}
+      <ExternalLinkHint external={link.external()} />
+    </a>
+  );
+};
 
 export const DocsNavbar: Component<DocsNavbarProps> = (props) => {
   const [local, rest] = splitProps(props, ["config", "currentPage", "pages", "onNavigate", "onOpenSearch", "showBrand", "showSidebarTrigger", "mobileSidebarTrigger", "class"]);
@@ -23,6 +40,7 @@ export const DocsNavbar: Component<DocsNavbarProps> = (props) => {
   const title = () => local.config.title || "Folio";
   const logoText = () => local.config.logo?.text || title();
   const logoHref = () => local.config.logo?.href || "/";
+  const logoLink = useExternalLink(logoHref);
   const repoUrl = () => local.config.repository?.url;
   const siteLocale = useSiteLocale();
 
@@ -43,11 +61,12 @@ export const DocsNavbar: Component<DocsNavbarProps> = (props) => {
             />
           </Show>
           <Show when={local.showBrand !== false}>
-            <NavbarBrand href={logoHref()} class="text-base font-bold tracking-tight">
+            <NavbarBrand href={logoHref()} {...logoLink.attributes()} class="text-base font-bold tracking-tight">
               <Show when={local.config.logo?.image} fallback={<Logo class="h-6 w-auto" />}>
                 {(img) => <img src={img()} alt={logoText()} class="size-6 object-contain" />}
               </Show>
               <span>{logoText()}</span>
+              <ExternalLinkHint external={logoLink.external()} />
             </NavbarBrand>
           </Show>
           <Show when={(local.config.navigation?.navbar || local.config.nav)?.length}>
@@ -55,14 +74,7 @@ export const DocsNavbar: Component<DocsNavbarProps> = (props) => {
               <For each={local.config.navigation?.navbar || local.config.nav}>
                 {(item) => (
                   <NavbarItem>
-                    <a
-                      href={item.href}
-                      target={item.external ? "_blank" : undefined}
-                      rel={item.external ? "noreferrer" : undefined}
-                      class={buttonVariants({ variant: "ghost", size: "sm" }) + " shrink-0 whitespace-nowrap text-xs"}
-                    >
-                      {item.title}
-                    </a>
+                    <NavbarLink item={item} />
                   </NavbarItem>
                 )}
               </For>
@@ -105,7 +117,7 @@ export const DocsNavbar: Component<DocsNavbarProps> = (props) => {
                 <a
                   href={url()}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   class={buttonVariants({ variant: "ghost", size: "sm" }) + " hidden sm:inline-flex h-8 px-2 text-xs"}
                 >
                   {siteLocale.t("navigation.github")}

@@ -6,6 +6,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { ExternalLinkHint, useExternalLink } from "@/components/ui/external-link";
 import { cn } from "@/lib/cn";
 import { useSiteLocale } from "../../plugins/i18n/runtime.jsx";
 
@@ -29,10 +30,12 @@ export const PagerLink: Component<PagerLinkProps> = (props) => {
   const siteLocale = useSiteLocale();
 
   const isNext = () => local.type === "next";
+  const link = useExternalLink(() => local.href);
 
   return (
     <a
       href={local.href}
+      {...link.attributes()}
       class={cn(
         "group block rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
         isNext() && "sm:col-start-2",
@@ -54,6 +57,7 @@ export const PagerLink: Component<PagerLinkProps> = (props) => {
           </CardDescription>
           <CardTitle class="text-sm font-semibold tracking-tight group-hover:text-primary transition-colors line-clamp-1">
             {local.title}
+            <ExternalLinkHint external={link.external()} />
           </CardTitle>
         </CardHeader>
       </Card>

@@ -157,7 +157,7 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
   ];
   const internalComponentsSource = internalComponentCandidates.find((directory) => fs.existsSync(directory));
   if (internalComponentsSource) {
-    for (const name of ["theme-toggle", "sidebar", "section-heading", "command"]) {
+    for (const name of ["theme-toggle", "sidebar", "section-heading", "command", "external-link", "code-tabs"]) {
       const source = path.join(internalComponentsSource, `${name}.tsx`);
       if (await fs.pathExists(source)) {
         const destination = path.join(componentsDir, `${name}.tsx`);
@@ -174,6 +174,15 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
   const cnDestination = path.join(root, "src/lib/cn.ts");
   if (cnSource && !(await fs.pathExists(cnDestination))) {
     await fs.outputFile(cnDestination, await fs.readFile(cnSource, "utf-8"), "utf-8");
+  }
+  // Pure helper behind the external-link UI component.
+  const externalLinksSource = [
+    path.resolve(commandDir, "../../lib/external-links.ts"),
+    path.resolve(commandDir, "../../vendor/docs-src/lib/external-links.ts"),
+  ].find((candidate) => fs.existsSync(candidate));
+  const externalLinksDestination = path.join(root, "src/lib/external-links.ts");
+  if (externalLinksSource && !(await fs.pathExists(externalLinksDestination))) {
+    await fs.outputFile(externalLinksDestination, await fs.readFile(externalLinksSource, "utf-8"), "utf-8");
   }
   return { componentFiles, hookFiles, dependencies: [...dependencies].sort() };
 }
