@@ -131,10 +131,13 @@ jobs:
           PACKAGE_VERSION: ${{ inputs.tag && format('{0}', inputs.tag) || github.ref_name }}
         run: |
           VERSION="${PACKAGE_VERSION#v}"
-          for attempt in $(seq 1 12); do
-            if npm view "@nikala-ui/folio@$VERSION" version >/dev/null 2>&1; then exit 0; fi
-            sleep 10
+          # The registry can take several minutes to serve a new version.
+          for attempt in $(seq 1 30); do
+            if npm view "@nikala-ui/folio@$VERSION" version --prefer-online; then exit 0; fi
+            echo "Attempt $attempt/30: @nikala-ui/folio@$VERSION is not visible yet"
+            sleep 20
           done
+          echo "::error::@nikala-ui/folio@$VERSION did not appear on npm within 10 minutes"
           exit 1
 
       - name: Install published package in a clean project

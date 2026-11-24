@@ -11,6 +11,15 @@ const cliPath = path.join(packageRoot, "dist/cli/index.js");
 const tempRoot = await mkdtemp(path.join(os.tmpdir(), "folio-consumer-"));
 const packageLink = `file:${packageRoot}`;
 
+// Measured on a 2-core runner with the pinned Bun: `dev` listens in ~1 s idle
+// and ~3 s under CPU pressure; `preview` builds its SSR bundle before it
+// listens (~10 s idle, ~18 s on one core, ~25 s with both cores contended).
+// 60 s keeps more than twice the worst measured start as headroom.
+const SERVER_START_TIMEOUT_MS = 60_000;
+// A first response takes well under a second once the server is listening.
+const REQUEST_TIMEOUT_MS = 5_000;
+const POLL_INTERVAL_MS = 100;
+
 try {
   await writeFile(path.join(tempRoot, "package.json"), JSON.stringify({
     name: "folio-smoke-project",
@@ -129,31 +138,45 @@ async function assertServerStarts(command: string[], cwd: string, url: string, e
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
   });
+  const startedAt = Date.now();
   let output = "";
+  let exitCode: number | null | undefined;
   server.stdout.on("data", (chunk) => { output += String(chunk); });
   server.stderr.on("data", (chunk) => { output += String(chunk); });
+  server.on("exit", (code) => { exitCode = code; });
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+  let lastAttempt = "no request was sent";
   try {
-    const deadline = Date.now() + 20_000;
-    while (Date.now() < deadline) {
-      let response: Response;
+    const deadline = startedAt + SERVER_START_TIMEOUT_MS;
+    // The CLI prints the URL once it is listening. A request sent earlier can
+    // be accepted by the socket and then stall until the client gives up
+    // (observed with Bun 1.3.14 under CPU pressure), so wait for that line.
+    while (!output.includes(url) && exitCode === undefined && Date.now() < deadline) await sleep(POLL_INTERVAL_MS);
+    if (output.includes(url)) lastAttempt = "server printed its URL but no request completed";
+
+    while (exitCode === undefined && Date.now() < deadline && output.includes(url)) {
       try {
-        response = await fetch(url);
-      } catch {
-        // The server is still starting.
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        continue;
+        const response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+        const body = await response.text();
+        if (response.ok) {
+          assert.doesNotMatch(body, /(?:navigation|actions|search|theme)\.[a-zA-Z]+/);
+          if (expectRenderedText) assert.match(body, /Search docs\.\.\./);
+          return;
+        }
+        lastAttempt = `HTTP ${response.status}: ${body.slice(0, 500)}`;
+      } catch (error) {
+        if (error instanceof assert.AssertionError) throw error;
+        lastAttempt = `request failed: ${error instanceof Error ? error.message : String(error)}`;
       }
-      if (!response.ok) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        continue;
-      }
-      const body = await response.text();
-      assert.doesNotMatch(body, /(?:navigation|actions|search|theme)\.[a-zA-Z]+/);
-      if (expectRenderedText) assert.match(body, /Search docs\.\.\./);
-      return;
+      await sleep(POLL_INTERVAL_MS);
     }
-    throw new Error(`Server did not start at ${url}:\n${output}`);
+
+    const state = exitCode !== undefined ? `exited with code ${exitCode}` : "still running";
+    throw new Error(
+      `Server did not start at ${url} within ${Date.now() - startedAt} ms (${state}).\n` +
+      `Last attempt: ${lastAttempt}\nServer output:\n${output}`,
+    );
   } finally {
     server.kill("SIGTERM");
   }
