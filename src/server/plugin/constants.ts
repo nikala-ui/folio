@@ -14,6 +14,8 @@ export const VIRTUAL_THEME_ID = "virtual:folio-theme";
 export const RESOLVED_THEME_ID = "\0" + VIRTUAL_THEME_ID;
 export const VIRTUAL_HIGHLIGHT_LANGUAGES_ID = "virtual:folio-highlight-languages";
 export const RESOLVED_HIGHLIGHT_LANGUAGES_ID = "\0" + VIRTUAL_HIGHLIGHT_LANGUAGES_ID;
+export const VIRTUAL_HIGHLIGHT_THEMES_ID = "virtual:folio-highlight-themes";
+export const RESOLVED_HIGHLIGHT_THEMES_ID = "\0" + VIRTUAL_HIGHLIGHT_THEMES_ID;
 export const VIRTUAL_SHIKI_ID = "virtual:folio-shiki-stub";
 export const RESOLVED_SHIKI_ID = "\0" + VIRTUAL_SHIKI_ID;
 

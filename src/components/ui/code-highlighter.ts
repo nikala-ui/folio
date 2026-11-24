@@ -58,6 +58,27 @@ async function loadCustomLanguage(highlighter: any, lang: string): Promise<strin
   }
 }
 
+/**
+ * Resolve the light and dark themes. Theme objects from the site's
+ * `shiki.themes` are loaded into the highlighter from a separate lazy chunk;
+ * any other mode keeps its bundled GitHub theme.
+ */
+async function loadConfiguredThemes(highlighter: any): Promise<{ light: string; dark: string }> {
+  const themes = { light: "github-light", dark: "github-dark" };
+  try {
+    const { default: custom } = await import("virtual:folio-highlight-themes");
+    for (const mode of ["light", "dark"] as const) {
+      const theme = custom[mode];
+      if (!theme) continue;
+      if (!highlighter.getLoadedThemes().includes(theme.name)) await highlighter.loadTheme(theme);
+      themes[mode] = theme.name;
+    }
+  } catch (err) {
+    console.warn("Failed to load custom Shiki themes", err);
+  }
+  return themes;
+}
+
 /** Highlight code in the browser, or return null when the caller should fall back to plain text. */
 export async function highlightOnClient(code: string, rawLang: string): Promise<string | null> {
   const highlighter = await getHighlighter();
@@ -68,7 +89,7 @@ export async function highlightOnClient(code: string, rawLang: string): Promise<
     ? requested
     : (await loadCustomLanguage(highlighter, requested.toLowerCase())) ?? requested;
   try {
-    return highlighter.codeToHtml(code, { lang, themes: { light: "github-light", dark: "github-dark" } });
+    return highlighter.codeToHtml(code, { lang, themes: await loadConfiguredThemes(highlighter) });
   } catch (err) {
     console.warn(`Shiki failed for language: ${rawLang}`, err);
     return null;

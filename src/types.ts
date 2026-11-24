@@ -118,10 +118,22 @@ export interface DocsPageActionsConfig {
   ai?: DocsAiProvider[];
 }
 
+/**
+ * A Shiki theme: the name of a bundled theme such as `"github-light"`, or a
+ * full Shiki theme registration object (with a unique `name`, `type`,
+ * `colors` and `tokenColors`). Theme objects must be plain JSON data.
+ */
+export type ShikiThemeInput = string | import("shiki").ThemeRegistration;
+
 export interface ShikiConfig {
+  /**
+   * Themes used for light and dark mode. Each accepts a bundled theme name or
+   * a Shiki theme object. Object names must not match a bundled theme name,
+   * and the light and dark objects must not share a name.
+   */
   themes?: {
-    light?: string;
-    dark?: string;
+    light?: ShikiThemeInput;
+    dark?: ShikiThemeInput;
   };
   /** Allowlist of built-in language ids. Custom languages are not affected. */
   langs?: string[];

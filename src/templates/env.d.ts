@@ -12,6 +12,12 @@ declare module "virtual:folio-highlight-languages" {
   export default languages;
 }
 
+declare module "virtual:folio-highlight-themes" {
+  type Theme = { name: string; [key: string]: unknown };
+  const themes: { light?: Theme; dark?: Theme };
+  export default themes;
+}
+
 declare module "virtual:folio-tree" {
   export const pages: any[];
   export const tree: any[];

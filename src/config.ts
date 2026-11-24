@@ -3,6 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import fs from "fs-extra";
 import { validateCustomLanguages } from "./mdx/custom-languages.js";
+import { validateCustomThemes } from "./mdx/custom-themes.js";
 import { validateFolioPlugins } from "./plugin.js";
 import { loadSiteTranslations } from "./plugins/i18n/site-locale.js";
 import type { DocsConfig } from "./types.js";
@@ -56,6 +57,7 @@ export const DEFAULT_DOCS_CONFIG: Required<Pick<DocsConfig, "title" | "descripti
 export function defineDocsConfig(config: DocsConfig): DocsConfig {
   validateFolioPlugins(config.plugins);
   validateCustomLanguages(config.shiki?.customLangs);
+  validateCustomThemes(config.shiki?.themes);
   if (config.uiLocale !== undefined) {
     throw new Error("[folio] Configure site translations through createI18nPlugin() in DocsConfig.plugins");
   }
@@ -158,6 +160,7 @@ export async function resolveDocsConfig(cwd: string = process.cwd()): Promise<Do
             },
           };
           validateCustomLanguages(mergedConfig.shiki?.customLangs);
+          validateCustomThemes(mergedConfig.shiki?.themes);
           mergedConfig.uiLocale = await loadSiteTranslations(cwd, mergedConfig.uiLocale);
           return mergedConfig;
         } finally {

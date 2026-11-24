@@ -62,6 +62,7 @@ describe("client-side highlighting of custom languages", () => {
 
   test("highlights custom and built-in languages and falls back for unknown ones", async () => {
     mock.module("virtual:folio-highlight-languages", () => ({ default: [demo] }));
+    mock.module("virtual:folio-highlight-themes", () => ({ default: {} }));
     (globalThis as { window?: unknown }).window = {};
 
     const custom = await highlightOnClient("fn main", "dl");
