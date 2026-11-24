@@ -15,7 +15,7 @@ function anchors(html: string): Anchor[] {
   return [...html.matchAll(/<a\b((?:[^>"]|"[^"]*")*)>([^<]*(?:<(?!\/a>)(?:[^>"]|"[^"]*")*>[^<]*)*)<\/a>/g)].map(([, attributes, inner]) => {
     const parsed: Record<string, string> = {};
     for (const [, name, value] of attributes.matchAll(/([\w-]+)="([^"]*)"/g)) parsed[name] = value;
-    return { ...parsed, text: inner.replace(/<[^>]*>/g, "").trim() } as Anchor;
+    return { ...parsed, text: inner.split(/<[^>]*>/).join("").trim() } as Anchor;
   });
 }
 
