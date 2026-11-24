@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
+import { languageLoaders, resolveBuiltinLanguages } from "../src/mdx/builtin-languages.js";
 import { compileMdx } from "../src/mdx/compiler.js";
 import { highlightOnClient } from "../src/components/ui/code-highlighter.js";
 import { RESOLVED_CONFIG_ID, RESOLVED_HIGHLIGHT_LANGUAGES_ID } from "../src/server/plugin/constants.js";
@@ -61,6 +62,9 @@ describe("client-side highlighting of custom languages", () => {
   });
 
   test("highlights custom and built-in languages and falls back for unknown ones", async () => {
+    mock.module("virtual:folio-builtin-languages", () => ({
+      default: Object.fromEntries(resolveBuiltinLanguages(undefined).map((id) => [id, languageLoaders[id]])),
+    }));
     mock.module("virtual:folio-highlight-languages", () => ({ default: [demo] }));
     mock.module("virtual:folio-highlight-themes", () => ({ default: {} }));
     (globalThis as { window?: unknown }).window = {};

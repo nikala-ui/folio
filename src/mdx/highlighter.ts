@@ -7,7 +7,7 @@ import {
 import { createBundledHighlighter } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import type { ShikiConfig, ShikiThemeInput } from "../types.js";
-import { languageLoaders, normalizeLangAlias } from "./builtin-languages.js";
+import { languageLoaders, normalizeLangAlias, resolveBuiltinLanguages } from "./builtin-languages.js";
 import { createCustomLanguageIndex, type CustomLanguageIndex } from "./custom-languages.js";
 import { createCustomThemes, getThemeName } from "./custom-themes.js";
 
@@ -55,9 +55,7 @@ export function configureDocsHighlighter(config: ShikiConfig): void {
   createCustomThemes(config.themes);
   activeShikiConfig = config;
   activeShikiConfigKey = JSON.stringify(config);
-  activeAllowedLanguages = config.langs
-    ? new Set(config.langs.map(normalizeLangAlias).filter((lang) => lang in languageLoaders))
-    : null;
+  activeAllowedLanguages = config.langs ? new Set(resolveBuiltinLanguages(config.langs)) : null;
   highlighterPromise = null; // Re-initialize with new configuration
 }
 

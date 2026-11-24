@@ -4,14 +4,12 @@ import { fileURLToPath } from "node:url";
 import fs from "fs-extra";
 import pc from "picocolors";
 import { FOLIO_VERSION } from "../../version.js";
+import { COMPILER_COMPONENTS } from "../../mdx/compiler-components.js";
+import { collectSourceClosure, findFolioSourceRoot, listSharedSourceFiles, registryPathToSource, resolveSourceImport } from "../init/folio-sources.js";
 
-interface RegistryFile { path: string; content: string; }
 interface RegistryItem {
-  name?: string;
-  type?: string;
-  files?: RegistryFile[];
+  files?: Array<{ path: string }>;
   dependencies?: string[];
-  registryDependencies?: string[];
 }
 
 async function listSourceFiles(dir: string): Promise<string[]> {
@@ -71,8 +69,7 @@ function installProjectDependencies(root: string): void {
 
 async function copyRegistrySource(root: string): Promise<{ componentFiles: string[]; hookFiles: string[]; dependencies: string[] }> {
   const registryDir = await resolveRegistryDir();
-  const componentsDir = path.join(root, "src/components/ui");
-  const hooksDir = path.join(root, "src/hooks");
+  const sourceRoot = findFolioSourceRoot();
   const commandDir = path.dirname(fileURLToPath(import.meta.url));
   const docsComponentSources = [
     path.resolve(commandDir, "../../../src/components/mdx-components.tsx"),
@@ -84,107 +81,48 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
     ...docsComponentSources,
   ];
   const projectSource = (await Promise.all(projectFiles.map((file) => fs.readFile(file, "utf-8")))).join("\n");
-  const manifests = new Map<string, RegistryItem>();
+
+  // Folio's own sources are the only source of file contents, so a generated
+  // project always matches the running Folio version. Registry manifests only
+  // declare which npm packages a component's files need.
   const exports = new Map<string, string>();
-
-  for (const filename of (await fs.readdir(registryDir)).filter((name) => name.endsWith(".json") && name !== "index.json")) {
-    const item = await fs.readJson(path.join(registryDir, filename)) as RegistryItem;
-    const name = item.name || filename.replace(/\.json$/, "");
-    manifests.set(name, item);
-    for (const file of item.files || []) {
-      for (const match of file.content.matchAll(/export\s+(?:const|function|class|type|interface)\s+([A-Za-z_$][\w$]*)/g)) {
-        exports.set(match[1], name);
-      }
-    }
+  for (const file of await listSharedSourceFiles(sourceRoot)) {
+    const source = await fs.readFile(path.join(sourceRoot, file), "utf-8");
+    for (const match of source.matchAll(/export\s+(?:const|function|class|type|interface)\s+([A-Za-z_$][\w$]*)/g)) exports.set(match[1], file);
   }
-
-  const selected = new Set<string>();
-  const queue: string[] = [];
+  const entries = new Set<string>();
   const addByExport = (name: string) => {
-    const itemName = exports.get(name) || (manifests.has(name) ? name : undefined);
-    if (itemName && !selected.has(itemName)) queue.push(itemName);
+    const file = exports.get(name);
+    if (file) entries.add(file);
   };
-
-  for (const match of projectSource.matchAll(/@\/components\/ui\/([a-z0-9-]+)/g)) addByExport(match[1]);
-  for (const match of projectSource.matchAll(/@\/hooks\/([a-z0-9-]+)/g)) addByExport(match[1]);
+  for (const match of projectSource.matchAll(/@\/(?:components\/ui|hooks|providers|lib)\/[a-z0-9-]+/g)) {
+    const file = resolveSourceImport(sourceRoot, "", match[0]);
+    if (file) entries.add(file);
+  }
   for (const match of projectSource.matchAll(/import\s*{([^{}]*?)}\s*from\s*["']@\/components\/ui["']/g)) {
     for (const name of match[1].split(",")) addByExport(name.trim().split(/\s+as\s+/)[0]);
   }
+  COMPILER_COMPONENTS.forEach(addByExport);
   for (const match of projectSource.matchAll(/<([A-Z][A-Za-z0-9_]*)[\s/>]/g)) addByExport(match[1]);
   for (const match of projectSource.matchAll(/\bCore\.([A-Z][A-Za-z0-9_]*)/g)) addByExport(match[1]);
 
-  const requiredItems: RegistryItem[] = [];
-  while (queue.length) {
-    const name = queue.shift()!;
-    if (selected.has(name)) continue;
-    const item = manifests.get(name);
-    if (!item) continue;
-    selected.add(name);
-    requiredItems.push(item);
-    for (const dependency of item.registryDependencies || []) addByExport(dependency);
-    const source = (item.files || []).map((file) => file.content).join("\n");
-    for (const match of source.matchAll(/@\/components\/ui\/([a-z0-9-]+)/g)) addByExport(match[1]);
-    for (const match of source.matchAll(/@\/hooks\/([a-z0-9-]+)/g)) addByExport(match[1]);
-    for (const match of source.matchAll(/import\s*{([^{}]*?)}\s*from\s*["']@\/components\/ui["']/g)) {
-      for (const imported of match[1].split(",")) addByExport(imported.trim().split(/\s+as\s+/)[0]);
+  const closure = await collectSourceClosure(sourceRoot, entries);
+  const dependencies = new Set<string>();
+  for (const filename of (await fs.readdir(registryDir)).filter((name) => name.endsWith(".json") && name !== "index.json")) {
+    const item = await fs.readJson(path.join(registryDir, filename)) as RegistryItem;
+    if ((item.files || []).some((file) => closure.includes(registryPathToSource(file.path)))) {
+      for (const dependency of item.dependencies || []) dependencies.add(dependency);
     }
   }
 
-  const componentFiles: string[] = [];
-  const hookFiles: string[] = [];
-  const dependencies = new Set<string>();
-  for (const item of requiredItems) {
-    for (const dependency of item.dependencies || []) dependencies.add(dependency);
-    const targetDir = item.type === "registry:hook" ? hooksDir : item.type === "registry:ui" ? root : undefined;
-    if (!targetDir || !item.files) continue;
-    for (const file of item.files) {
-      const relative = file.path.replace(/^(ui|hooks|providers)[\\/]/, "");
-      const destination = file.path.startsWith("providers/")
-        ? path.join(root, "src/providers", relative)
-        : file.path.startsWith("ui/")
-          ? path.join(componentsDir, relative)
-          : path.join(hooksDir, relative);
-      if (!(await fs.pathExists(destination))) await fs.outputFile(destination, file.content, "utf-8");
-      if (file.path.startsWith("hooks/")) hookFiles.push(relative.replace(/\.(tsx?|jsx?)$/, ""));
-      else if (file.path.startsWith("ui/")) componentFiles.push(relative.replace(/\.(tsx?|jsx?)$/, ""));
-    }
+  for (const file of closure) {
+    const destination = path.join(root, "src", file);
+    if (!(await fs.pathExists(destination))) await fs.copy(path.join(sourceRoot, file), destination);
   }
-  // These are Docs theme internals rather than public Nikala UI registry
-  // entries, but the generated default theme imports them directly.
-  const internalComponentCandidates = [
-    path.resolve(commandDir, "../../vendor/docs-src/components/ui"),
-    path.resolve(commandDir, "../../components/ui"),
-  ];
-  const internalComponentsSource = internalComponentCandidates.find((directory) => fs.existsSync(directory));
-  if (internalComponentsSource) {
-    for (const name of ["theme-toggle", "sidebar", "section-heading", "command", "external-link", "code-tabs"]) {
-      const source = path.join(internalComponentsSource, `${name}.tsx`);
-      if (await fs.pathExists(source)) {
-        const destination = path.join(componentsDir, `${name}.tsx`);
-        if (!(await fs.pathExists(destination))) await fs.copy(source, destination);
-        componentFiles.push(name);
-      }
-    }
-  }
-  const cnCandidates = [
-    path.resolve(commandDir, "../../lib/cn.ts"),
-    path.resolve(commandDir, "../../vendor/docs-src/lib/cn.ts"),
-  ];
-  const cnSource = cnCandidates.find((candidate) => fs.existsSync(candidate));
-  const cnDestination = path.join(root, "src/lib/cn.ts");
-  if (cnSource && !(await fs.pathExists(cnDestination))) {
-    await fs.outputFile(cnDestination, await fs.readFile(cnSource, "utf-8"), "utf-8");
-  }
-  // Pure helper behind the external-link UI component.
-  const externalLinksSource = [
-    path.resolve(commandDir, "../../lib/external-links.ts"),
-    path.resolve(commandDir, "../../vendor/docs-src/lib/external-links.ts"),
-  ].find((candidate) => fs.existsSync(candidate));
-  const externalLinksDestination = path.join(root, "src/lib/external-links.ts");
-  if (externalLinksSource && !(await fs.pathExists(externalLinksDestination))) {
-    await fs.outputFile(externalLinksDestination, await fs.readFile(externalLinksSource, "utf-8"), "utf-8");
-  }
-  return { componentFiles, hookFiles, dependencies: [...dependencies].sort() };
+  const names = (directory: string) => closure
+    .filter((file) => path.posix.dirname(file) === directory)
+    .map((file) => path.posix.basename(file).replace(/\.(?:tsx?|jsx?)$/, ""));
+  return { componentFiles: names("components/ui"), hookFiles: names("hooks"), dependencies: [...dependencies].sort() };
 }
 
 async function copyPluginSources(root: string): Promise<void> {

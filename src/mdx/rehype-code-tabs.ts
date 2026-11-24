@@ -1,3 +1,5 @@
+import { CODE_TABS_COMPONENT } from "./compiler-components.js";
+
 interface MdxJsxAttribute {
   type: string;
   name?: string;
@@ -73,7 +75,7 @@ export function rehypeCodeTabs() {
   }
 
   function visit(node: MdxNode): void {
-    if (node.type === "mdxJsxFlowElement" && node.name === "CodeTabs") return convert(node);
+    if (node.type === "mdxJsxFlowElement" && node.name === CODE_TABS_COMPONENT) return convert(node);
     node.children?.forEach(visit);
   }
 
