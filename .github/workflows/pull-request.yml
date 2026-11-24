@@ -93,6 +93,9 @@ jobs:
       - name: Build local package
         run: bun run build
 
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+
       - name: Run generated consumer smoke test
         run: bun run test:generated
 
