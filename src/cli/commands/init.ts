@@ -157,7 +157,7 @@ async function copyRegistrySource(root: string): Promise<{ componentFiles: strin
   ];
   const internalComponentsSource = internalComponentCandidates.find((directory) => fs.existsSync(directory));
   if (internalComponentsSource) {
-    for (const name of ["theme-toggle", "sidebar", "section-heading", "command", "external-link"]) {
+    for (const name of ["theme-toggle", "sidebar", "section-heading", "command", "external-link", "code-tabs"]) {
       const source = path.join(internalComponentsSource, `${name}.tsx`);
       if (await fs.pathExists(source)) {
         const destination = path.join(componentsDir, `${name}.tsx`);

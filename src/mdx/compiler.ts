@@ -6,6 +6,7 @@ import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import { extractToc } from "../core/content-scanner.js";
 import type { Frontmatter, TocItem } from "../types.js";
+import { rehypeCodeTabs } from "./rehype-code-tabs.js";
 import { rehypeExternalLinks } from "./rehype-external-links.js";
 import { rehypeShiki } from "./rehype-shiki.js";
 
@@ -48,6 +49,7 @@ export async function compileMdx(
         },
       ],
       [rehypeShiki, options.shiki],
+      rehypeCodeTabs,
       [rehypeExternalLinks, { siteUrl: options.siteUrl }],
     ],
   });

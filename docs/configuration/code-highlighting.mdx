@@ -127,3 +127,79 @@ alias that matches a built-in language or alias (for example `typescript` or
 ```text
 [folio] shiki.customLangs[1] ("typescript") uses "typescript", which is a built-in language or alias
 ```
+
+## Code tabs
+
+`CodeTabs` shows several code fences as tabs in one code block. Put the fences
+inside the component and label each one with `title="..."` in the fence meta:
+
+````mdx
+<CodeTabs syncKey="language">
+
+```ts title="TypeScript"
+const answer: number = 42;
+```
+
+```js title="JavaScript"
+const answer = 42;
+```
+
+</CodeTabs>
+````
+
+Leave a blank line between the tags and the fences. A fence without a `title`
+is labelled with its language, and two tabs of one group cannot have the same
+label.
+
+<CodeTabs syncKey="language">
+
+```ts title="TypeScript"
+const answer: number = 42;
+```
+
+```js title="JavaScript"
+const answer = 42;
+```
+
+</CodeTabs>
+
+Each tab keeps the language you gave its fence, so highlighting is exactly what
+a standalone fence would get. Nothing is rewritten, no `$` prompt is added, and
+the copy button copies the code of the active tab. The tab list follows the
+keyboard conventions of the ARIA tabs pattern: Tab moves into the list, and the
+arrow keys, Home, and End move between tabs.
+
+### Syncing tabs
+
+Give groups the same `syncKey` and they switch together. Choose a tab in this
+group and the one below follows:
+
+<CodeTabs syncKey="language">
+
+```ts title="TypeScript"
+export const greeting: string = "Hello";
+```
+
+```js title="JavaScript"
+export const greeting = "Hello";
+```
+
+</CodeTabs>
+
+The choice is remembered in the browser's `localStorage` under
+`folio:code-tabs:<syncKey>`, so it also applies on other pages and after a
+reload. A group that has no tab with the remembered label shows its first tab
+and leaves the stored choice alone. The first tab is also what the server
+renders and what shows when storage is unavailable. Groups without a `syncKey`
+switch on their own and remember nothing.
+
+| Prop | Description |
+| --- | --- |
+| `syncKey` | Groups on the page with the same key switch together and remember the choice. |
+| `label` | Accessible name of the tab list. |
+| `copyable` | Set to `false` to hide the copy button. Defaults to `true`. |
+
+`CodeTabs` is copied into your project by `folio init` as
+`src/components/ui/code-tabs.tsx`. In a project that was created earlier, copy
+that file from the Folio package to use it. `PackageManagerTabs` is a separate
+component for package manager commands and does not use it.
