@@ -35,10 +35,17 @@ src/server/       Vite, development, build, and preview integration
 src/client/       client router and application shell
 src/themes/       default documentation theme
 src/components/   theme UI components
-src/registry/     generated-project source manifests
+src/registry/     npm dependencies of the sources `folio init` copies
 tests/            unit and integration tests
 docs/             self-hosted documentation content
 ```
+
+`folio init` copies sources from `src/components/ui`, `src/hooks`, `src/providers`,
+and `src/lib`, plus the files they import, into a new project. These files are
+the only copy kept in the repository, and `tests/init-sources.test.ts` fails
+when an import cannot be followed. A new npm package used by a copied file must
+be listed in the `dependencies` of a manifest in `src/registry/` that names one
+of the files.
 
 ## Development commands
 

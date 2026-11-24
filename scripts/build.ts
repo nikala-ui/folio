@@ -20,6 +20,7 @@ const srcThemesDir = path.resolve(rootDir, "src/themes");
 const srcClientRuntimeDir = path.resolve(rootDir, "src/client");
 const srcNavigationDir = path.resolve(rootDir, "src/navigation");
 const srcSearchDir = path.resolve(rootDir, "src/search");
+const srcThemeAccentFile = path.resolve(rootDir, "src/theme-accent.ts");
 const srcTemplatesDir = path.resolve(rootDir, "src/templates");
 console.log(pc.cyan("📦 Building @nikala-ui/folio..."));
 
@@ -88,6 +89,8 @@ try {
   await fs.copy(srcHooksDir, path.join(docsSourceDir, "hooks"));
   await fs.copy(srcProvidersDir, path.join(docsSourceDir, "providers"));
   if (fs.existsSync(srcLibDir)) await fs.copy(srcLibDir, path.join(docsSourceDir, "lib"));
+  // Copied providers import it, and init mirrors this tree under the project's src/.
+  await fs.copy(srcThemeAccentFile, path.join(docsSourceDir, "theme-accent.ts"));
   await fs.copy(srcPluginsDir, path.join(docsSourceDir, "plugins"));
   await fs.copy(srcThemesDir, path.join(docsSourceDir, "themes"));
   await fs.copy(srcClientRuntimeDir, path.join(docsSourceDir, "client"), {

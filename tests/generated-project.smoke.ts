@@ -4,6 +4,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile, access } from "node:fs/promi
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { chromium } from "playwright";
 import { SITE_TRANSLATION_KEYS } from "../src/plugins/i18n/site-locale.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -54,6 +55,9 @@ try {
   );
   const configSource = await readFile(path.join(tempRoot, "docs.config.ts"), "utf8");
   assert.match(configSource, /createI18nPlugin\(\{ defaultLocale: "en", locales: \["en"\] \}\)/);
+
+  await assertCopiedSourcesMatchFolio(tempRoot);
+  await writeGuideFixture(tempRoot, configSource);
   const locale = JSON.parse(await readFile(path.join(tempRoot, "locales/en.json"), "utf8")) as Record<string, string>;
   assert.deepEqual(Object.keys(locale).sort(), [...SITE_TRANSLATION_KEYS].sort());
   assert.equal(locale["navigation.search"], "Search docs...");
@@ -90,6 +94,7 @@ try {
     tempRoot,
     "http://127.0.0.1:4185/",
     true,
+    () => assertGuidePage("http://127.0.0.1:4185/guide"),
   );
 
   const protectedFiles = {
@@ -133,7 +138,76 @@ async function collectFiles(root: string, directories: string[]): Promise<string
   return files;
 }
 
-async function assertServerStarts(command: string[], cwd: string, url: string, expectRenderedText = false) {
+/**
+ * Every component, hook and provider that init copies must be byte-identical to
+ * the source of the Folio version that ran init, and the files Folio's own
+ * code block and theme depend on must be there. `lib/cn.ts` is created by the
+ * Nikala UI initializer first and differs from Folio's copy only in comments.
+ */
+async function assertCopiedSourcesMatchFolio(projectRoot: string) {
+  const vendorRoot = path.join(packageRoot, "dist/vendor/docs-src");
+  const copied = await collectFiles(projectRoot, ["src/components/ui", "src/hooks", "src/providers"]);
+  copied.push("src/theme-accent.ts");
+  for (const required of [
+    "src/components/ui/section-heading.tsx",
+    "src/components/ui/code-block.tsx",
+    "src/components/ui/code-highlighter.ts",
+    "src/components/ui/code-block-commands.ts",
+    "src/components/ui/code-tabs.tsx",
+  ]) assert.ok(copied.includes(required), `init must copy ${required}`);
+  for (const file of copied) {
+    const relative = path.relative("src", file);
+    assert.equal(
+      await readFile(path.join(projectRoot, file), "utf8"),
+      await readFile(path.join(vendorRoot, relative), "utf8"),
+      `${file} must match the source of the running Folio version`,
+    );
+  }
+  assert.match(await readFile(path.join(projectRoot, "src/components/ui/section-heading.tsx"), "utf8"), /\bactions\b/, "section-heading must support the page actions slot");
+}
+
+/** A docs page with a custom-language fence, plus the repository link that enables "View source". */
+async function writeGuideFixture(projectRoot: string, configSource: string) {
+  const grammar = '{ name: "demolang", scopeName: "source.demolang", patterns: [{ name: "keyword.control.demolang", match: "\\\\b(?:fn|let)\\\\b" }] }';
+  const extended = configSource.replace(
+    "  search: { enabled: true },",
+    `  search: { enabled: true },\n  repository: { url: "https://example.com/acme/docs", branch: "main" },\n  shiki: { customLangs: [${grammar}] },`,
+  );
+  assert.notEqual(extended, configSource, "the generated docs.config.ts changed shape; update this fixture");
+  await writeFile(path.join(projectRoot, "docs.config.ts"), extended);
+  await writeFile(
+    path.join(projectRoot, "docs/guide.mdx"),
+    "---\ntitle: Guide\ndescription: A page with page actions and a custom language.\n---\n\n```demolang\nfn main\n```\n",
+  );
+}
+
+/** The generated project's docs page renders page actions and highlights a custom language without console noise. */
+async function assertGuidePage(pageUrl: string) {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const messages: string[] = [];
+    page.on("pageerror", (error) => messages.push(`pageerror: ${error.message}`));
+    page.on("console", (message) => {
+      if (message.type() === "warning" || message.type() === "error") messages.push(`${message.type()}: ${message.text()}`);
+    });
+    await page.goto(pageUrl, { waitUntil: "networkidle" });
+    // The server renders the shell only; the page itself, including its header actions, renders in the browser.
+    await page.getByRole("heading", { name: "Guide", level: 1 }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Copy documentation page" }).count(), 1, "the copy page action must render on a generated docs page");
+    assert.match(
+      (await page.getByRole("link", { name: "View source" }).getAttribute("href")) ?? "",
+      /^https:\/\/example\.com\/acme\/docs\/.*guide\.mdx$/,
+      "the view source action must render on a generated docs page",
+    );
+    assert.ok(await page.locator('code[class*="language-demolang"] span[style*="--shiki"]').count() > 0, "the custom language must be highlighted");
+    assert.deepEqual(messages, [], "a generated docs page must not log warnings or errors in the browser");
+  } finally {
+    await browser.close();
+  }
+}
+
+async function assertServerStarts(command: string[], cwd: string, url: string, expectRenderedText = false, inspect?: () => Promise<void>) {
   const server = spawn(process.execPath, command, {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
@@ -147,6 +221,7 @@ async function assertServerStarts(command: string[], cwd: string, url: string, e
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   let lastAttempt = "no request was sent";
+  let reachable = false;
   try {
     const deadline = startedAt + SERVER_START_TIMEOUT_MS;
     // The CLI prints the URL once it is listening. A request sent earlier can
@@ -162,7 +237,8 @@ async function assertServerStarts(command: string[], cwd: string, url: string, e
         if (response.ok) {
           assert.doesNotMatch(body, /(?:navigation|actions|search|theme)\.[a-zA-Z]+/);
           if (expectRenderedText) assert.match(body, /Search docs\.\.\./);
-          return;
+          reachable = true;
+          break;
         }
         lastAttempt = `HTTP ${response.status}: ${body.slice(0, 500)}`;
       } catch (error) {
@@ -170,6 +246,11 @@ async function assertServerStarts(command: string[], cwd: string, url: string, e
         lastAttempt = `request failed: ${error instanceof Error ? error.message : String(error)}`;
       }
       await sleep(POLL_INTERVAL_MS);
+    }
+
+    if (reachable) {
+      await inspect?.();
+      return;
     }
 
     const state = exitCode !== undefined ? `exited with code ${exitCode}` : "still running";

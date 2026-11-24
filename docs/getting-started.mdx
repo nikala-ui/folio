@@ -69,8 +69,16 @@ The generated project contains:
     ├── index.css
     ├── lib/
     ├── providers/
+    ├── theme-accent.ts
     └── themes/default/
 ```
+
+Every component, hook, and provider in `src/` is copied from the Folio version
+that ran the initializer, together with the helper files it imports, so the
+copies always match the theme that Folio ships. The initializer never
+overwrites a file that already exists. To pick up the components of a newer
+Folio version in an existing project, delete the copies you have not changed
+and run the initializer again.
 
 It also configures the `@/*` TypeScript path alias and adds `dev`, `build`,
 and `preview` scripts when they are not already defined.
