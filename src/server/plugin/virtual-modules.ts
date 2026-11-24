@@ -6,12 +6,13 @@ import { scanContentDirectories } from "../../core/content-scanner.js";
 import { buildConfiguredSidebarTree, buildSidebarTree } from "../../core/route-tree.js";
 import type { DocsConfig, PageData } from "../../types.js";
 import type { SearchAdapterRuntime } from "../../search/provider.js";
+import { languageModules, resolveBuiltinLanguages } from "../../mdx/builtin-languages.js";
 import { createCustomThemes, getThemeName } from "../../mdx/custom-themes.js";
 import { serializeModuleValue } from "../module-serialization.js";
 import type { FolioBuildSession } from "./lifecycle.js";
 import { collectComponentExports, collectStaticComponentFiles, getComponentSourceDir, toLucideComponentName } from "./components.js";
 import {
-  RESOLVED_COMPONENTS_ID, RESOLVED_CONFIG_ID, RESOLVED_HIGHLIGHT_LANGUAGES_ID, RESOLVED_HIGHLIGHT_THEMES_ID, RESOLVED_ICONS_ID, RESOLVED_ROUTES_ID,
+  RESOLVED_BUILTIN_LANGUAGES_ID, RESOLVED_COMPONENTS_ID, RESOLVED_CONFIG_ID, RESOLVED_HIGHLIGHT_LANGUAGES_ID, RESOLVED_HIGHLIGHT_THEMES_ID, RESOLVED_ICONS_ID, RESOLVED_ROUTES_ID,
   RESOLVED_SHIKI_ID, RESOLVED_SOURCES_ID, RESOLVED_THEME_ID, RESOLVED_TREE_ID,
 } from "./constants.js";
 
@@ -55,6 +56,12 @@ export const bundledLanguages = {};
 export const bundledThemes = {};
 export default { createHighlighter, bundledLanguages, bundledThemes };
 `;
+    if (id === RESOLVED_BUILTIN_LANGUAGES_ID) {
+      // Only the languages the site enables become client chunks, each fetched when a block first needs it.
+      const loaders = resolveBuiltinLanguages(resolvedConfig.shiki?.langs).map((language) =>
+        `  ${serializeModuleValue(language)}: () => import(${serializeModuleValue(`@shikijs/langs/${languageModules[language]}`)})`);
+      return `export default {\n${loaders.join(",\n")}\n};`;
+    }
     if (id === RESOLVED_HIGHLIGHT_LANGUAGES_ID) {
       return `export default ${serializeModuleValue(resolvedConfig.shiki?.customLangs ?? [])};`;
     }

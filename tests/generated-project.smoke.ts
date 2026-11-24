@@ -166,22 +166,22 @@ async function assertCopiedSourcesMatchFolio(projectRoot: string) {
   assert.match(await readFile(path.join(projectRoot, "src/components/ui/section-heading.tsx"), "utf8"), /\bactions\b/, "section-heading must support the page actions slot");
 }
 
-/** A docs page with a custom-language fence, plus the repository link that enables "View source". */
+/** A docs page with toml and custom-language fences, plus the repository link that enables "View source". */
 async function writeGuideFixture(projectRoot: string, configSource: string) {
   const grammar = '{ name: "demolang", scopeName: "source.demolang", patterns: [{ name: "keyword.control.demolang", match: "\\\\b(?:fn|let)\\\\b" }] }';
   const extended = configSource.replace(
     "  search: { enabled: true },",
-    `  search: { enabled: true },\n  repository: { url: "https://example.com/acme/docs", branch: "main" },\n  shiki: { customLangs: [${grammar}] },`,
+    `  search: { enabled: true },\n  repository: { url: "https://example.com/acme/docs", branch: "main" },\n  shiki: { langs: ["typescript", "toml"], customLangs: [${grammar}] },`,
   );
   assert.notEqual(extended, configSource, "the generated docs.config.ts changed shape; update this fixture");
   await writeFile(path.join(projectRoot, "docs.config.ts"), extended);
   await writeFile(
     path.join(projectRoot, "docs/guide.mdx"),
-    "---\ntitle: Guide\ndescription: A page with page actions and a custom language.\n---\n\n```demolang\nfn main\n```\n",
+    "---\ntitle: Guide\ndescription: A page with page actions and highlighted fences.\n---\n\n```toml\nname = \"folio\"\n```\n\n```demolang\nfn main\n```\n",
   );
 }
 
-/** The generated project's docs page renders page actions and highlights a custom language without console noise. */
+/** The generated project's docs page renders page actions and highlights toml and a custom language without console noise. */
 async function assertGuidePage(pageUrl: string) {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -200,7 +200,9 @@ async function assertGuidePage(pageUrl: string) {
       /^https:\/\/example\.com\/acme\/docs\/.*guide\.mdx$/,
       "the view source action must render on a generated docs page",
     );
-    assert.ok(await page.locator('code[class*="language-demolang"] span[style*="--shiki"]').count() > 0, "the custom language must be highlighted");
+    for (const lang of ["toml", "demolang"]) {
+      assert.ok(await page.locator(`code[class*="language-${lang}"] span[style*="--shiki"]`).count() > 0, `${lang} must be highlighted`);
+    }
     assert.deepEqual(messages, [], "a generated docs page must not log warnings or errors in the browser");
   } finally {
     await browser.close();

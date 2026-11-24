@@ -1,44 +1,41 @@
-// Built-in Shiki language catalog shared by the highlighter and config validation.
+// Built-in Shiki language catalog shared by the highlighter, the generated
+// browser loaders, and config validation.
+import type { LanguageRegistration } from "shiki";
+import { LANGUAGE_ALIASES, normalizeLangAlias } from "../lib/highlight-languages.js";
 
-export const languageLoaders = {
-  typescript: () => import("@shikijs/langs/typescript"),
-  javascript: () => import("@shikijs/langs/javascript"),
-  tsx: () => import("@shikijs/langs/tsx"),
-  jsx: () => import("@shikijs/langs/jsx"),
-  bash: () => import("@shikijs/langs/shellscript"),
-  json: () => import("@shikijs/langs/json"),
-  css: () => import("@shikijs/langs/css"),
-  html: () => import("@shikijs/langs/html"),
-  markdown: () => import("@shikijs/langs/markdown"),
-  mdx: () => import("@shikijs/langs/mdx"),
-  rust: () => import("@shikijs/langs/rust"),
-  python: () => import("@shikijs/langs/python"),
-  yaml: () => import("@shikijs/langs/yaml"),
-  toml: () => import("@shikijs/langs/toml"),
-  sql: () => import("@shikijs/langs/sql"),
-  diff: () => import("@shikijs/langs/diff"),
-  c: () => import("@shikijs/langs/c"),
-  cpp: () => import("@shikijs/langs/cpp"),
-  go: () => import("@shikijs/langs/go"),
-  mermaid: () => import("@shikijs/langs/mermaid"),
-  dockerfile: () => import("@shikijs/langs/docker"),
-  zig: () => import("@shikijs/langs/zig"),
+export { LANGUAGE_ALIASES, normalizeLangAlias };
+
+/** Built-in language ids mapped to the `@shikijs/langs` module that provides each grammar. */
+export const languageModules = {
+  typescript: "typescript",
+  javascript: "javascript",
+  tsx: "tsx",
+  jsx: "jsx",
+  bash: "shellscript",
+  json: "json",
+  css: "css",
+  html: "html",
+  markdown: "markdown",
+  mdx: "mdx",
+  rust: "rust",
+  python: "python",
+  yaml: "yaml",
+  toml: "toml",
+  sql: "sql",
+  diff: "diff",
+  c: "c",
+  cpp: "cpp",
+  go: "go",
+  mermaid: "mermaid",
+  dockerfile: "docker",
+  zig: "zig",
 } as const;
 
-/** Fence-language shorthands that resolve to a built-in language id. */
-export const LANGUAGE_ALIASES: Readonly<Record<string, string>> = {
-  shell: "bash",
-  sh: "bash",
-  zsh: "bash",
-  js: "javascript",
-  ts: "typescript",
-  py: "python",
-  rs: "rust",
-  yml: "yaml",
-  md: "markdown",
-  rb: "ruby",
-  cs: "csharp",
-};
+export type BuiltinLanguageId = keyof typeof languageModules;
+
+export const languageLoaders = Object.fromEntries(
+  Object.entries(languageModules).map(([id, module]) => [id, () => import(`@shikijs/langs/${module}`)]),
+) as Record<BuiltinLanguageId, () => Promise<{ default: LanguageRegistration[] }>>;
 
 /** Identifiers that always render without highlighting. */
 export const PLAIN_TEXT_IDS = ["text", "txt", "plain"] as const;
@@ -53,7 +50,10 @@ export const RESERVED_LANGUAGE_IDS: ReadonlySet<string> = new Set([
   ...PLAIN_TEXT_IDS,
 ]);
 
-export function normalizeLangAlias(lang: string): string {
-  const id = lang.toLowerCase().trim();
-  return Object.hasOwn(LANGUAGE_ALIASES, id) ? LANGUAGE_ALIASES[id] : id;
+/** The built-in languages a site enables: its `shiki.langs` allowlist, or all of them when the list is unset. */
+export function resolveBuiltinLanguages(langs: readonly string[] | undefined): BuiltinLanguageId[] {
+  const ids = Object.keys(languageModules) as BuiltinLanguageId[];
+  if (!langs) return ids;
+  const allowed = new Set(langs.map(normalizeLangAlias));
+  return ids.filter((id) => allowed.has(id));
 }

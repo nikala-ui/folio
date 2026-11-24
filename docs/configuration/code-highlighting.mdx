@@ -21,6 +21,20 @@ loaded on demand, while unsupported or unlisted languages safely render as
 plain text. Keep the list limited to formats used by the site so production
 bundles stay small.
 
+## Highlighting in the browser
+
+Fenced code blocks are highlighted once, on the server, while Folio compiles
+the page. The browser renders that HTML as it is and does not highlight those
+blocks again.
+
+A `CodeBlock` used directly in MDX or in your own components, for example
+`<CodeBlock lang="toml" code={source} />`, has no server-highlighted children,
+so it is highlighted in the browser. It uses the same language set as the
+server: the built-in languages that `shiki.langs` enables and every language in
+`shiki.customLangs`. A language outside that set renders as plain text. The
+client build contains grammars only for that set, and each one loads on demand
+the first time a block needs it. The page shares one highlighter.
+
 ## Custom themes
 
 `shiki.themes.light` and `shiki.themes.dark` each accept either the name of a

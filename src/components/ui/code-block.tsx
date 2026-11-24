@@ -1,4 +1,5 @@
 import {
+  children as resolveChildren,
   createSignal,
   createEffect,
   createMemo,
@@ -61,6 +62,11 @@ export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
   const [activePm, setActivePm] = createSignal<CodeBlockPackageManager>("bunx");
   const [highlightedHtml, setHighlightedHtml] = createSignal("");
 
+  // Children mean the server already highlighted this block. Resolve them once
+  // so the same DOM is rendered and inspected.
+  const serverContent = resolveChildren(() => local.children);
+  const isServerHighlighted = () => serverContent.toArray().length > 0;
+
   const effectiveLang = () => (local.lang || local.language || "tsx").toLowerCase();
   const copyable = () => local.copyable ?? true;
   const defaultManagers: CodeBlockPackageManager[] = ["bunx", "npx", "pnpm", "yarn"];
@@ -79,7 +85,9 @@ export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
     return raw;
   });
 
+  // Only blocks rendered without children are highlighted in the browser.
   createEffect(() => {
+    if (isServerHighlighted()) return;
     const codeStr = cleanCode();
     const lang = effectiveLang();
 
@@ -204,7 +212,7 @@ export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
       {/* Code Container */}
       <div class="overflow-x-auto p-4 text-[13px] leading-relaxed [scrollbar-width:thin]">
         <Show
-          when={local.children}
+          when={isServerHighlighted()}
           fallback={
             <div
               class="font-mono text-sm leading-relaxed overflow-x-auto [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-none"
@@ -213,7 +221,7 @@ export const CodeBlock: ParentComponent<CodeBlockProps> = (props) => {
           }
         >
           <pre class="shiki nikala-code-block m-0 overflow-x-auto bg-transparent p-0 font-mono text-xs">
-            {local.children}
+            {serverContent()}
           </pre>
         </Show>
       </div>
