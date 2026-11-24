@@ -175,10 +175,25 @@ export interface DocsConfig {
     image?: string;
     href?: string;
   };
+  /**
+   * The project repository. `url` drives the navbar GitHub button; it also
+   * builds the "View source" link unless `source` is set.
+   */
   repository?: {
     url: string;
     branch?: string;
     rootDir?: string;
+    /**
+     * Where the documentation pages live, when that is a different repository
+     * from `url`. "View source" links are built from it instead of from the
+     * fields above. `branch` defaults to `main`; `rootDir` is the folder of the
+     * docs project inside that repository (the `contentDir` is appended).
+     */
+    source?: {
+      url: string;
+      branch?: string;
+      rootDir?: string;
+    };
   };
   pageActions?: DocsPageActionsConfig;
   /** @deprecated Use navigation.navbar instead. */

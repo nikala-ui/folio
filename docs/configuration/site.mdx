@@ -90,3 +90,31 @@ export default {
 nested inside the repository, for example `"apps/docs"`. The configured
 `contentDir` is appended automatically. GitHub, GitLab, and Bitbucket URLs are
 supported.
+
+### Pages in a different repository
+
+`repository.url` also drives the GitHub button in the navbar, so it usually
+points at the main project. When the documentation pages live in another
+repository, add `repository.source`. The `View source` link is then built from
+it, and the navbar button still uses `repository.url`:
+
+```ts
+export default {
+  contentDir: "docs",
+  repository: {
+    url: "https://github.com/example/project",
+    source: {
+      url: "https://github.com/example/website",
+      branch: "main",
+      rootDir: "",
+    },
+  },
+};
+```
+
+`source` takes the same `url`, `branch`, and `rootDir` as `repository`. It does
+not inherit `branch` or `rootDir` from `repository`: `branch` defaults to
+`main` and `rootDir` to the repository root. Without `source`, the link is built
+from `repository` as before. Folio checks `source` when it loads the
+configuration and stops with an error when `url` is not an http(s) URL, `branch`
+is empty, or `rootDir` leaves the repository.
