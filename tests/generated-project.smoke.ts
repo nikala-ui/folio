@@ -69,6 +69,17 @@ try {
 
   const packageJson = JSON.parse(await readFile(path.join(tempRoot, "package.json"), "utf8"));
   assert.equal(packageJson.dependencies["@nikala-ui/folio"], packageLink);
+  // init must write the ranges Folio itself is built with, never `latest`
+  // (solid-js `latest` resolved to a new major that Folio does not support).
+  const folioManifest = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
+  for (const section of ["dependencies", "devDependencies"] as const) {
+    for (const [name, range] of Object.entries(packageJson[section] ?? {})) {
+      assert.notEqual(range, "latest", `${section}.${name} must not be "latest"`);
+    }
+  }
+  assert.equal(packageJson.dependencies["solid-js"], folioManifest.devDependencies["solid-js"]);
+  assert.equal(packageJson.dependencies.tailwindcss, folioManifest.devDependencies.tailwindcss);
+  assert.equal(packageJson.devDependencies.typescript, folioManifest.devDependencies.typescript);
 
   execFileSync(process.execPath, ["install", "--frozen-lockfile"], {
     cwd: tempRoot,

@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import pc from "picocolors";
 import { FOLIO_VERSION } from "../../version.js";
 import { COMPILER_COMPONENTS } from "../../mdx/compiler-components.js";
+import { folioDependencyRange, type FolioManifest } from "../init/dependency-ranges.js";
 import { collectSourceClosure, findFolioSourceRoot, listSharedSourceFiles, registryPathToSource, resolveSourceImport } from "../init/folio-sources.js";
 
 interface RegistryItem {
@@ -282,16 +283,18 @@ export default {
     && (await fs.readJson(workspaceManifestPath)).workspaces?.includes("packages/*")
     && docsPackageRoot === path.join(workspaceRoot, "packages/docs");
   const targetIsInWorkspace = root === workspaceRoot || root.startsWith(`${workspaceRoot}${path.sep}`);
+  const docsPackageManifest = await fs.readJson(path.join(docsPackageRoot, "package.json")) as FolioManifest;
+  const folioRange = (name: string) => folioDependencyRange(docsPackageManifest, name);
   const defaultPackageJson = {
     name: "folio-example",
     private: true,
     type: "module",
   scripts: { dev: "bunx @nikala-ui/folio dev", build: "bunx @nikala-ui/folio build", preview: "bunx @nikala-ui/folio preview" },
-    dependencies: { "fs-extra": "^11.3.6" },
+    dependencies: { "fs-extra": folioRange("fs-extra") },
     devDependencies: {
-      "@types/fs-extra": "latest",
-      "@types/node": "latest",
-      typescript: "latest",
+      "@types/fs-extra": folioRange("@types/fs-extra"),
+      "@types/node": folioRange("@types/node"),
+      typescript: folioRange("typescript"),
     },
   };
   const existingPackageJson = await fs.pathExists(packagePath) ? await fs.readJson(packagePath) : {};
@@ -300,7 +303,6 @@ export default {
     ...existingPackageJson,
     scripts: { ...defaultPackageJson.scripts, ...existingPackageJson.scripts },
   };
-  const docsPackageManifest = await fs.readJson(path.join(docsPackageRoot, "package.json"));
   const publishedDocsVersion = `^${docsPackageManifest.version}`;
   const localDocsLink = path.join(root, "node_modules/@nikala-ui/folio");
   const hasLocalDocsLink = await fs.pathExists(localDocsLink) && (await fs.lstat(localDocsLink)).isSymbolicLink();
@@ -314,11 +316,11 @@ export default {
   packageJson.dependencies = {
     ...packageJson.dependencies,
     "@nikala-ui/folio": docsDependency,
-    ...(packageJson.dependencies?.["solid-js"] ? {} : { "solid-js": "latest" }),
-    ...(packageJson.dependencies?.tailwindcss ? {} : { tailwindcss: "latest" }),
+    ...(packageJson.dependencies?.["solid-js"] ? {} : { "solid-js": folioRange("solid-js") }),
+    ...(packageJson.dependencies?.tailwindcss ? {} : { tailwindcss: folioRange("tailwindcss") }),
     ...Object.fromEntries(registryDependencies
       .filter((dependency) => !packageJson.dependencies?.[dependency])
-      .map((dependency) => [dependency, "latest"])),
+      .map((dependency) => [dependency, folioRange(dependency)])),
   };
   packageJson.devDependencies = {
     ...defaultPackageJson.devDependencies,

@@ -53,6 +53,12 @@ dependencies required by the generated theme. It merges the generated scripts
 and dependencies into `package.json`, while existing `docs.config.ts` and
 `nikala.config.json` files are preserved.
 
+Dependencies the initializer adds, such as `solid-js`, `tailwindcss`, and the
+packages the copied components import, use the version ranges that the running
+Folio version is built and tested with, read from Folio's own `package.json`.
+It never writes `latest`, so a new major release of a dependency cannot enter a
+freshly generated project. Dependencies you already declare are left unchanged.
+
 The generated project contains:
 
 ```text
