@@ -15,6 +15,7 @@ import { sidebarMenuButtonVariants } from "@/components/ui/sidebar";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { CollapsedGroupMenu } from "./collapsed-group-menu.jsx";
 import { ChevronRight, Folder } from "lucide-solid";
 import type { SidebarItem } from "../../../types.js";
 import type { PageData } from "../../../types.js";
@@ -114,6 +115,9 @@ export const SidebarTree: Component<SidebarTreeProps> = (props) => {
           <SidebarMenu>
             <SidebarMenuItem class="w-full flex-col items-stretch">
               <Show
+                when={sidebar.state() === "collapsed" && !sidebar.isMobile() && group.items?.length}
+                fallback={<>
+              <Show
                 when={group.href}
                 fallback={
                   <SidebarMenuButton
@@ -163,6 +167,10 @@ export const SidebarTree: Component<SidebarTreeProps> = (props) => {
                     <For each={group.items}>{(item) => renderNested(item)}</For>
                   </SidebarMenuSub>
                 </div>
+              </Show>
+                </>}
+              >
+                <CollapsedGroupMenu group={group} currentUrl={props.currentUrl} icon={renderCategoryIcon(group.icon)} />
               </Show>
             </SidebarMenuItem>
           </SidebarMenu>

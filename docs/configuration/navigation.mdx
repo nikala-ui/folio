@@ -30,6 +30,16 @@ export default {
 Set `layout: "top"` to place navigation above the content without the
 desktop sidebar.
 
+### Collapsed sidebar
+
+On desktop the sidebar can collapse to an icon rail. Hovering or focusing a
+group's icon then opens a menu next to the rail with the group's page and its
+child pages, including nested groups as submenus, built from the same
+navigation data as the expanded sidebar. The current page is highlighted. Use
+the arrow keys to move through the menu, `Enter` to open a page, and `Escape`
+to close it and return to the icon. The mobile sidebar always shows the full
+tree and does not use the menu.
+
 ## Automatic sidebar
 
 The default `navigation.sidebar.nav: "auto"` mode is filesystem-based. Directories become
